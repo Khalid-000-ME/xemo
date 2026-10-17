@@ -12,7 +12,8 @@
     "db:push": "drizzle-kit push",
     "smoke": "node scripts/smoke-test.mjs",
     "x402:probe": "node scripts/x402-probe.mjs",
-    "template:check": "node scripts/template-check.mjs"
+    "template:check": "node scripts/template-check.mjs",
+    "createos:check": "node scripts/createos-check.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.82",
