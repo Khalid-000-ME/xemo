@@ -49,8 +49,15 @@ export function platformReachableFromSandbox(): boolean {
  * the id itself — with the underscore swapped for a hyphen — both fits and
  * identifies the sandboxes this platform owns.
  */
-const NAME_PREFIX = "af-";
+const NAME_PREFIX = "xm-";
+/** Sandboxes created before the rename. Still ours, still holding a slot. */
+const LEGACY_NAME_PREFIXES = ["af-", "agentfoundry-"];
 const NAME_MAX = 22;
+
+function isOurs(name: string | undefined): boolean {
+  const n = name ?? "";
+  return n.startsWith(NAME_PREFIX) || LEGACY_NAME_PREFIXES.some((p) => n.startsWith(p));
+}
 
 export function sandboxName(buildId: string): string {
   const name = buildId.replace(/_/g, "-").toLowerCase().slice(0, NAME_MAX);
@@ -120,14 +127,14 @@ async function reclaimCapacity(
 
   // Only ever reclaim sandboxes this platform created.
   const ours = current.filter(
-    (b) => (b.name ?? "").startsWith(NAME_PREFIX) && b.status !== "destroying",
+    (b) => isOurs(b.name) && b.status !== "destroying",
   );
   const needed = current.length - cap + 1;
 
   if (ours.length === 0) {
     onNote?.(
       `at the CreateOS concurrency cap (${current.length}/${cap}) and none of the running sandboxes ` +
-        `belong to AgentFoundry, so none can be reclaimed`,
+        `belong to Xemo, so none can be reclaimed`,
     );
     return;
   }

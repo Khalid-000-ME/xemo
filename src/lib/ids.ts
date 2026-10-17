@@ -11,7 +11,7 @@ export function id(prefix: string): string {
   return `${prefix}_${time}${rand}`;
 }
 
-export const newBuildId = () => id("af");
+export const newBuildId = () => id("xm");
 export const newEventId = () => id("ev");
 export const newFileId = () => id("fl");
 export const newLedgerId = () => id("lg");
