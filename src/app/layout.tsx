@@ -25,13 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="relative z-20">
           <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-5">
             <Link href="/" className="flex items-center gap-2.5 text-[17px] font-medium tracking-tight">
-              <span
-                aria-hidden
-                className="grid size-7 place-items-center rounded-full text-[13px] font-semibold"
-                style={{ background: "var(--brand)", color: "var(--on-brand)" }}
-              >
-                X
-              </span>
+              <img src="/xemo-mark.png" alt="" width={32} height={32} className="size-8 shrink-0 rounded-[9px]" />
               Xemo
             </Link>
             <nav className="ml-auto flex items-center gap-1 text-[14px]">
