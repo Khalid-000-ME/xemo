@@ -10,7 +10,7 @@ import { Badge, Card, Mono } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 const STEPS = [
-  ["Plan", "A structured product spec from your brief: name, tagline, unit, price"],
+  ["Plan", "A structured spec for your onchain product: name, tagline, deliverable, price"],
   ["Generate", "A working storefront rendered from a vetted template, never free-form shell"],
   ["Test and deploy", "Typecheck and assertions inside a CreateOS microVM, then a public URL"],
   ["Open both rails", "Stripe Checkout for humans and an x402 endpoint for agents"],
@@ -42,10 +42,11 @@ export default async function Home() {
           <Image src="/hero.jpg" alt="" fill priority sizes="100vw" className="-z-10 object-cover" />
           <div className="mx-auto max-w-4xl">
             <h1 className="hero-in font-serif text-[48px] leading-[1.02] tracking-[-0.02em] text-[#0c0c0e] sm:text-[72px] lg:text-[88px]">
-              One prompt in. A business that sells to humans <em>and</em> to agents out.
+              The gateway to <em>institutional</em> blockchain. One prompt, one live business.
             </h1>
             <p className="hero-in mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-[#26262c] sm:text-[18px]">
-              Xemo plans, builds, deploys and monetizes a micro-SaaS, with Stripe for people and x402 for machines.
+              Launch stablecoin, tokenization and prediction-market businesses in seconds. Xemo builds, deploys and
+              monetizes them, with Stripe for people and x402 for agents.
             </p>
             <div className="hero-in mt-9 flex flex-wrap items-center justify-center gap-3">
               <a href="#build" className="rounded-full bg-[#0c0c0e] px-6 py-3 text-[15px] font-medium text-white transition-opacity hover:opacity-85">
@@ -64,7 +65,8 @@ export default async function Home() {
           <div className="reveal">
             <h2 className={H2}>Commission a business</h2>
             <p className="mt-5 max-w-sm text-[16px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
-              Describe the product and the price. The agent does the rest and shows you every step as it happens.
+              Describe an onchain product, such as a stablecoin risk checker, a tokenization readiness scorer or a
+              prediction-market auditor. The agent builds it and shows you every step as it happens.
             </p>
           </div>
           <Card as="section" className="reveal">
@@ -132,7 +134,7 @@ export default async function Home() {
           <Card className="reveal">
             <pre className="overflow-x-auto font-mono text-[12.5px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
 {`POST ${env.appUrl}/api/x402/commission
-{"prompt": "Build a paid AI resume reviewer", "priceUsd": 5}
+{"prompt": "Build a paid prediction-market resolution auditor", "priceUsd": 5}
 
 → 402 Payment Required  (payment requirements)
 → retry with X-PAYMENT  → live app + both rails`}
