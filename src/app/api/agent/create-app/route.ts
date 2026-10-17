@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { startBuild, ValidationError } from "@/lib/agent/orchestrator";
 import { MissingCredentialsError } from "@/lib/env";
 import { fail, numOr, ok, readJson, str } from "@/lib/http";
@@ -15,13 +16,18 @@ export async function POST(req: Request) {
   if (!prompt) return fail(400, "PROMPT_REQUIRED", "a product brief is required");
 
   try {
-    const { buildId } = await startBuild({
+    const { buildId, done } = await startBuild({
       prompt,
       productName: str(body.productName),
       priceUsd: body.priceUsd === undefined ? undefined : numOr(body.priceUsd, 5),
       template: str(body.template),
       origin: "dashboard",
     });
+
+    // On a serverless platform a function may be frozen the moment its response
+    // is sent, which would strand the build mid-flight. `after` keeps the
+    // invocation alive until the build settles; locally it is a plain callback.
+    after(() => done.then(() => undefined));
 
     return ok({ buildId, status: "queued", timelineUrl: `/build/${buildId}` }, 202);
   } catch (err) {

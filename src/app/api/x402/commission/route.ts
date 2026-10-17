@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { withX402 } from "@x402/next";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 import { startBuild, ValidationError } from "@/lib/agent/orchestrator";
@@ -114,7 +114,10 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     // already run and thrown, so accepting the job here is not accepting one we
     // know will fail.
     if (body.wait === false) {
-      void done.catch(() => {});
+      // The response below ends this request while the build is still running.
+      // Without `after`, a serverless platform may freeze the function the
+      // moment it answers, and the build the agent just paid for would stall.
+      after(() => done.then(() => undefined, () => undefined));
 
       // Accepting the job is a promise the payment will be honoured, so do not
       // accept until the first costly step has actually worked. Planning and
