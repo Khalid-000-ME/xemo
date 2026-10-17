@@ -70,8 +70,8 @@ export function PromptForm() {
               setProductName(example.name);
               setPriceUsd(String(example.price));
             }}
-            className="rounded-full border px-3 py-1.5 text-[13px] transition-colors hover:bg-[var(--bg-subtle)]"
-            style={{ color: "var(--fg-muted)" }}
+            className="rounded-full border px-3.5 py-1.5 text-[13px] transition-colors hover:bg-[var(--bg)]"
+            style={{ color: "var(--fg-muted)", borderColor: "var(--line-strong)" }}
           >
             {example.label}
           </button>
@@ -79,7 +79,7 @@ export function PromptForm() {
       </div>
 
       <div>
-        <label htmlFor="prompt" className="mb-1.5 block text-sm font-medium">
+        <label htmlFor="prompt" className="mb-2 block text-sm font-medium">
           Product brief
         </label>
         <textarea
@@ -89,7 +89,7 @@ export function PromptForm() {
           maxLength={2000}
           rows={5}
           required
-          className="w-full resize-y rounded-lg border p-3 font-mono text-[13.5px] leading-relaxed outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/25"
+          className="w-full resize-y rounded-2xl border border-transparent p-4 font-mono text-[13.5px] leading-relaxed outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15"
           style={{ background: "var(--bg)", color: "var(--fg)" }}
           placeholder="Build a paid… charge $… per…"
         />
@@ -100,7 +100,7 @@ export function PromptForm() {
 
       <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
         <div>
-          <label htmlFor="name" className="mb-1.5 block text-sm font-medium">
+          <label htmlFor="name" className="mb-2 block text-sm font-medium">
             Product name <span style={{ color: "var(--fg-faint)" }}>(optional)</span>
           </label>
           <input
@@ -108,17 +108,17 @@ export function PromptForm() {
             value={productName}
             onChange={(e) => setProductName(e.target.value)}
             maxLength={60}
-            className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/25"
+            className="w-full rounded-full border border-transparent px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15"
             style={{ background: "var(--bg)", color: "var(--fg)" }}
             placeholder="The agent will pick one"
           />
         </div>
         <div>
-          <label htmlFor="price" className="mb-1.5 block text-sm font-medium">
+          <label htmlFor="price" className="mb-2 block text-sm font-medium">
             Human price
           </label>
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "var(--fg-faint)" }}>
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm" style={{ color: "var(--fg-faint)" }}>
               $
             </span>
             <input
@@ -129,7 +129,7 @@ export function PromptForm() {
               step={1}
               value={priceUsd}
               onChange={(e) => setPriceUsd(e.target.value)}
-              className="tnum w-full rounded-lg border py-2 pl-7 pr-3 text-sm outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/25"
+              className="tnum w-full rounded-full border border-transparent py-2.5 pl-8 pr-4 text-sm outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15"
               style={{ background: "var(--bg)", color: "var(--fg)" }}
             />
           </div>
@@ -137,7 +137,7 @@ export function PromptForm() {
       </div>
 
       {error ? (
-        <p className="rounded-lg border px-3 py-2 text-[13px]" style={{ background: "var(--neg-soft)", color: "var(--neg)" }}>
+        <p className="rounded-2xl px-4 py-2.5 text-[13px]" style={{ background: "var(--neg-soft)", color: "var(--neg)" }}>
           {error}
         </p>
       ) : null}
@@ -145,8 +145,8 @@ export function PromptForm() {
       <button
         type="submit"
         disabled={busy || prompt.trim().length < 10}
-        className="w-full rounded-lg px-4 py-3 text-[15px] font-semibold text-white transition-opacity disabled:opacity-55"
-        style={{ background: "var(--brand)" }}
+        className="w-full rounded-full px-5 py-3.5 text-[15px] font-medium transition-opacity hover:opacity-90 disabled:opacity-55"
+        style={{ background: "var(--brand)", color: "var(--on-brand)" }}
       >
         {busy ? "Starting the agent…" : "Build, deploy and monetize it"}
       </button>
