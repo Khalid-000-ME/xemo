@@ -11,7 +11,7 @@ export function Card({
 }) {
   return (
     <Tag
-      className={`rounded-xl border p-5 ${className}`}
+      className={`rounded-[28px] p-6 ${className}`}
       style={{ background: "var(--bg-subtle)", boxShadow: "var(--shadow)" }}
     >
       {children}
@@ -22,7 +22,7 @@ export function Card({
 export function Label({ children }: { children: ReactNode }) {
   return (
     <div
-      className="mb-1 text-[11px] font-semibold uppercase tracking-[0.07em]"
+      className="mb-1.5 font-mono text-[11.5px] uppercase tracking-[0.08em]"
       style={{ color: "var(--fg-faint)" }}
     >
       {children}
