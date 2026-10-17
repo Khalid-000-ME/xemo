@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withX402 } from "@x402/next";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 import { startBuild, ValidationError } from "@/lib/agent/orchestrator";
-import { accepts, resourceServer, x402Configured } from "@/lib/x402/server";
+import {
+  accepts,
+  facilitatorLabel,
+  facilitatorSupport,
+  resourceServer,
+  x402Configured,
+} from "@/lib/x402/server";
 import { env, MissingCredentialsError } from "@/lib/env";
 import { fail, numOr, readJson, str } from "@/lib/http";
 
@@ -170,7 +176,22 @@ function hash(value: string): string {
   return (h >>> 0).toString(36);
 }
 
-export const POST = x402Configured()
+/**
+ * A paid endpoint must never hang. If the facilitator cannot settle on the
+ * configured network, say so immediately and precisely — a 503 here is also
+ * what stops an agent being charged for a resource we cannot honour.
+ */
+async function guardFacilitator(): Promise<Response | null> {
+  const support = await facilitatorSupport();
+  if (support.ok) return null;
+  return fail(503, "FACILITATOR_UNSUPPORTED", support.message, {
+    network: env.x402.network,
+    facilitator: facilitatorLabel(),
+    ...(support.networks ? { facilitatorSupports: support.networks } : {}),
+  });
+}
+
+const paidRoute = x402Configured()
   ? withX402(
       handler,
       {
@@ -185,6 +206,14 @@ export const POST = x402Configured()
         },
       },
       resourceServer(),
+      undefined,
+      undefined,
+      // Do NOT sync with the facilitator at startup. When the configured
+      // network is unsupported, that sync throws RouteConfigurationError and
+      // takes the whole server down — a payments misconfiguration should
+      // degrade one endpoint, not the platform. `guardFacilitator` reports the
+      // same problem as a precise 503 on this route alone.
+      false,
     )
   : async () =>
       fail(
@@ -192,3 +221,9 @@ export const POST = x402Configured()
         "X402_NOT_CONFIGURED",
         "X402_PAY_TO is not set, so this service cannot be sold. Set it to the address payments should settle to.",
       );
+
+export async function POST(request: NextRequest) {
+  const blocked = await guardFacilitator();
+  if (blocked) return blocked;
+  return paidRoute(request);
+}
