@@ -1,12 +1,24 @@
+import Image from "next/image";
 import Link from "next/link";
 import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { builds } from "@/lib/db/schema";
 import { env, readiness } from "@/lib/env";
 import { PromptForm } from "@/components/PromptForm";
-import { Badge, Card, Label, Mono } from "@/components/ui";
+import { Badge, Card, Mono } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+
+const STEPS = [
+  ["Plan", "A structured product spec from your brief: name, tagline, unit, price"],
+  ["Generate", "A working storefront rendered from a vetted template, never free-form shell"],
+  ["Test and deploy", "Typecheck and assertions inside a CreateOS microVM, then a public URL"],
+  ["Open both rails", "Stripe Checkout for humans and an x402 endpoint for agents"],
+  ["Measure", "Revenue, inference cost and compute cost in one ledger"],
+];
+
+const H2 = "text-[44px] font-normal leading-[1.05] tracking-[-0.03em] sm:text-[56px]";
+const SPLIT = "grid gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]";
 
 export default async function Home() {
   const [recent, rails] = await Promise.all([
@@ -24,69 +36,101 @@ export default async function Home() {
   ]);
 
   return (
-    <div className="space-y-10">
-      <section>
-        <h1 className="max-w-2xl text-[34px] font-semibold leading-[1.12] tracking-[-0.025em] sm:text-[42px]">
-          One prompt in. A business that sells to humans <em className="not-italic" style={{ color: "var(--brand)" }}>and</em> to agents out.
-        </h1>
-        <p className="mt-4 max-w-2xl text-[17px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
-          Xemo plans a product, writes it, runs it in a CreateOS microVM, publishes it to a public URL,
-          then opens both payment rails: Stripe Checkout for people, and an{" "}
-          <a href="https://x402.org" className="underline decoration-dotted underline-offset-2" style={{ color: "var(--brand)" }}>
-            x402
-          </a>{" "}
-          endpoint for machines. Every dollar in and every cent out lands in one ledger.
-        </p>
+    <div>
+      <section className="px-3">
+        <div className="relative isolate flex h-[calc(100svh-96px)] min-h-[560px] max-h-[900px] items-center justify-center overflow-hidden rounded-[32px] px-6 text-center">
+          <Image src="/hero.jpg" alt="" fill priority sizes="100vw" className="-z-10 object-cover" />
+          <div className="mx-auto max-w-4xl">
+            <h1 className="font-serif text-[48px] leading-[1.02] tracking-[-0.02em] text-[#0c0c0e] sm:text-[72px] lg:text-[88px]">
+              One prompt in. A business that sells to humans <em>and</em> to agents out.
+            </h1>
+            <p className="mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-[#26262c] sm:text-[18px]">
+              Xemo plans, builds, deploys and monetizes a micro-SaaS, with Stripe for people and x402 for machines.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+              <a href="#build" className="rounded-full bg-[#0c0c0e] px-6 py-3 text-[15px] font-medium text-white transition-opacity hover:opacity-85">
+                Start building
+              </a>
+              <Link href="/dashboard" className="rounded-full bg-white/80 px-6 py-3 text-[15px] font-medium text-[#0c0c0e] backdrop-blur transition-colors hover:bg-white">
+                See the economics
+              </Link>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
-        <Card as="section">
-          <PromptForm />
-        </Card>
+      <div className="mx-auto max-w-6xl space-y-28 px-6 pt-28">
+        <section id="build" className={`scroll-mt-8 ${SPLIT}`}>
+          <div>
+            <h2 className={H2}>Commission a business</h2>
+            <p className="mt-5 max-w-sm text-[16px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
+              Describe the product and the price. The agent does the rest and shows you every step as it happens.
+            </p>
+          </div>
+          <Card as="section">
+            <PromptForm />
+          </Card>
+        </section>
 
-        <div className="space-y-6">
-          <Card>
-            <Label>Rails</Label>
-            <ul className="mt-2 space-y-2.5">
-              {rails.map((rail) => (
-                <li key={rail.id} className="flex items-start gap-2.5 text-[13px]">
+        <section>
+          <h2 className={H2}>What it runs on</h2>
+          <p className="mt-4 text-[16px]" style={{ color: "var(--fg-muted)" }}>
+            Live readiness of every rail this deployment depends on.
+          </p>
+          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {rails.map((rail) => (
+              <li key={rail.id} className="rounded-[28px] p-6" style={{ background: "var(--bg-subtle)" }}>
+                <div className="flex items-center gap-2.5 text-[17px]">
                   <span
                     aria-hidden
-                    className="mt-[6px] size-2 shrink-0 rounded-full"
-                    style={{
-                      background: rail.ready
-                        ? "var(--pos)"
-                        : rail.blocking
-                          ? "var(--neg)"
-                          : "var(--line-strong)",
-                    }}
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: rail.ready ? "var(--pos)" : rail.blocking ? "var(--neg)" : "var(--line-strong)" }}
                   />
-                  <span>
-                    <span className="font-medium">{rail.label}</span>
-                    <span className="sr-only">
-                      {rail.ready ? " — ready" : rail.blocking ? " — missing, required" : " — missing, optional"}
-                    </span>
-                    <span className="block leading-snug" style={{ color: "var(--fg-muted)" }}>
-                      {rail.ready ? rail.detail : `${rail.missing.join(", ")} — ${rail.detail}`}
-                    </span>
+                  {rail.label}
+                  <span className="sr-only">
+                    {rail.ready ? " — ready" : rail.blocking ? " — missing, required" : " — missing, optional"}
                   </span>
-                </li>
-              ))}
-            </ul>
-          </Card>
+                </div>
+                <p className="mt-2 font-mono text-[12.5px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
+                  {rail.ready ? rail.detail : `${rail.missing.join(", ")} — ${rail.detail}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-          <Card>
-            <Label>Buy a build as an agent</Label>
-            <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
-              Xemo is itself sold over x402 at{" "}
-              <strong style={{ color: "var(--fg)" }}>${env.x402.commissionPriceUsd.toFixed(2)}</strong> per build, on{" "}
-              <Mono>{env.x402.network}</Mono>. A PayBox-connected agent discovers it, pays, and gets a deployed app
-              back in one call.
+        <section className={SPLIT}>
+          <div>
+            <h2 className={H2}>How a build runs</h2>
+            <p className="mt-5 max-w-sm text-[16px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
+              Five steps, each recorded with its real duration and cost.
             </p>
-            <pre
-              className="mt-3 overflow-x-auto rounded-lg border p-3 font-mono text-[12px] leading-relaxed"
-              style={{ background: "var(--bg)" }}
-            >
+          </div>
+          <ol>
+            {STEPS.map(([title, note], i) => (
+              <li key={title} className="grid grid-cols-[2.5rem_1fr] items-baseline gap-x-4 gap-y-1 border-b py-6 first:pt-0 sm:grid-cols-[2.5rem_14rem_1fr]">
+                <span className="font-mono text-[13px]" style={{ color: "var(--fg-faint)" }}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="text-[22px] tracking-[-0.01em]">{title}</span>
+                <span className="col-start-2 text-[15px] sm:col-start-auto" style={{ color: "var(--fg-muted)" }}>
+                  {note}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className={SPLIT}>
+          <div>
+            <h2 className={H2}>Buy a build as an agent</h2>
+            <p className="mt-5 max-w-sm text-[16px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
+              Xemo is itself sold over x402 at <strong style={{ color: "var(--fg)" }}>${env.x402.commissionPriceUsd.toFixed(2)}</strong> per
+              build, on <Mono>{env.x402.network}</Mono>. A PayBox-connected agent discovers it, pays, and gets a deployed app back in one call.
+            </p>
+          </div>
+          <Card>
+            <pre className="overflow-x-auto font-mono text-[12.5px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
 {`POST ${env.appUrl}/api/x402/commission
 {"prompt": "Build a paid AI resume reviewer", "priceUsd": 5}
 
@@ -94,35 +138,38 @@ export default async function Home() {
 → retry with X-PAYMENT  → live app + both rails`}
             </pre>
           </Card>
-        </div>
-      </section>
-
-      {recent.length > 0 ? (
-        <section>
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold">Recent builds</h2>
-            <Link href="/dashboard" className="text-[13px] underline decoration-dotted underline-offset-2" style={{ color: "var(--brand)" }}>
-              See the economics →
-            </Link>
-          </div>
-          <ul className="grid gap-2">
-            {recent.map((build) => (
-              <li key={build.id}>
-                <Link
-                  href={`/build/${build.id}`}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3 transition-colors hover:bg-[var(--bg-subtle)]"
-                >
-                  <span className="font-medium">{build.productName}</span>
-                  <Badge status={build.status}>{build.status}</Badge>
-                  <span className="ml-auto font-mono text-[12px]" style={{ color: "var(--fg-faint)" }}>
-                    {build.id}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
         </section>
-      ) : null}
+
+        {recent.length > 0 ? (
+          <section>
+            <div className="mb-8 flex flex-wrap items-baseline justify-between gap-3">
+              <h2 className={H2}>Recent builds</h2>
+              <Link href="/dashboard" className="text-[14px] underline decoration-dotted underline-offset-4" style={{ color: "var(--fg-muted)" }}>
+                See the economics →
+              </Link>
+            </div>
+            <ul>
+              {recent.map((build, i) => (
+                <li key={build.id}>
+                  <Link
+                    href={`/build/${build.id}`}
+                    className="grid grid-cols-[2.5rem_1fr_auto] items-center gap-x-4 border-b py-5 transition-colors hover:bg-[var(--bg-subtle)] sm:grid-cols-[2.5rem_1fr_auto_12rem]"
+                  >
+                    <span className="pl-1 font-mono text-[13px]" style={{ color: "var(--fg-faint)" }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="text-[20px] tracking-[-0.01em]">{build.productName}</span>
+                    <Badge status={build.status}>{build.status}</Badge>
+                    <span className="hidden text-right font-mono text-[12px] sm:block" style={{ color: "var(--fg-faint)" }}>
+                      {build.id}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </div>
     </div>
   );
 }
