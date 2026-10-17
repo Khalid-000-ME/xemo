@@ -9,7 +9,6 @@ const nextConfig: NextConfig = {
     "/api/x402/**": ["./templates/**/*"],
     "/api/mcp/**": ["./templates/**/*"],
   },
-  eslint: { ignoreDuringBuilds: true },
 };
 
 export default nextConfig;

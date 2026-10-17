@@ -108,7 +108,8 @@ CREATE INDEX IF NOT EXISTS orders_session_idx ON orders(stripe_session_id);
 `;
 
 function open() {
-  const path = resolve(process.cwd(), env.databaseUrl);
+  // turbopackIgnore: the db path is runtime configuration, not a traced import.
+  const path = resolve(/* turbopackIgnore: true */ process.cwd(), env.databaseUrl);
   const dir = dirname(path);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const sqlite = new Database(path);

@@ -20,7 +20,8 @@ export class LocalRunner implements Runner {
   private server?: ReturnType<typeof spawn>;
 
   constructor(readonly id: string) {
-    this.appDir = resolve(process.cwd(), env.workspaceRoot, id);
+    // turbopackIgnore: the workspace path is runtime configuration.
+    this.appDir = resolve(/* turbopackIgnore: true */ process.cwd(), env.workspaceRoot, id);
   }
 
   static async create(id: string): Promise<LocalRunner> {
@@ -68,7 +69,10 @@ export class LocalRunner implements Runner {
   }
 
   async serve(port: number = APP_PORT): Promise<string> {
-    this.server = spawn("node", ["server.mjs"], {
+    // The entry path is joined at runtime: a bare "server.mjs" literal here
+    // gets traced as a module import by the bundler and fails the build.
+    const entry = join(this.appDir, "server.mjs");
+    this.server = spawn(process.execPath, [entry], {
       cwd: this.appDir,
       env: { ...process.env, PORT: String(port) },
       detached: false,
