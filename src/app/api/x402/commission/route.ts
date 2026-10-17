@@ -98,7 +98,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   const startedAt = Date.now();
 
   try {
-    const { buildId, done } = await startBuild({
+    const { buildId, done, provisioned } = await startBuild({
       prompt,
       productName: str(body.productName),
       priceUsd: body.priceUsd === undefined ? undefined : numOr(body.priceUsd, 5),
@@ -115,6 +115,25 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     // know will fail.
     if (body.wait === false) {
       void done.catch(() => {});
+
+      // Accepting the job is a promise the payment will be honoured, so do not
+      // accept until the first costly step has actually worked. Planning and
+      // sandbox creation take seconds; an exhausted quota, a bad model key or
+      // a dead CreateOS all surface here, as a non-2xx the facilitator will not
+      // settle, instead of as a failed build after the agent has paid.
+      try {
+        await Promise.race([
+          provisioned,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("the build did not start within 45 seconds")), 45_000),
+          ),
+        ]);
+      } catch (err) {
+        return fail(502, "BUILD_NOT_STARTED", err instanceof Error ? err.message : "the build could not start", {
+          buildId,
+        });
+      }
+
       return NextResponse.json(
         {
           buildId,

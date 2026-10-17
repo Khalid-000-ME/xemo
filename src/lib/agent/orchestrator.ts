@@ -42,6 +42,16 @@ export type BuildHandle = {
   buildId: string;
   /** Resolves when the build reaches a terminal state. */
   done: Promise<BuildOutcome>;
+  /**
+   * Resolves once the first expensive step has succeeded — planning is done and
+   * a sandbox exists — and rejects if the build dies before that.
+   *
+   * A caller that accepts the job without waiting for the finished app (the
+   * x402 route with `wait:false`) must wait for this first. Otherwise it
+   * answers 200, the payment settles, and the build then fails on something
+   * knowable in seconds, such as an exhausted sandbox quota.
+   */
+  provisioned: Promise<void>;
 };
 
 export type BuildOutcome = {
@@ -137,15 +147,26 @@ export async function startBuild(args: StartBuildArgs): Promise<BuildHandle> {
     });
   }
 
-  const done = run(buildId, { ...args, priceUsd, agentPriceUsd }).catch(
+  let markProvisioned!: () => void;
+  let markFailed!: (err: Error) => void;
+  const provisioned = new Promise<void>((resolve, reject) => {
+    markProvisioned = resolve;
+    markFailed = reject;
+  });
+  // Nobody may be listening (the dashboard path never is); never let that
+  // surface as an unhandled rejection.
+  provisioned.catch(() => {});
+
+  const done = run(buildId, { ...args, priceUsd, agentPriceUsd }, markProvisioned).catch(
     async (err): Promise<BuildOutcome> => {
       const message = err instanceof Error ? err.message : String(err);
+      markFailed(new Error(message));
       await fail(buildId, message);
       return { buildId, status: "failed", appUrl: null, agentEndpoint: null, error: message };
     },
   );
 
-  return { buildId, done };
+  return { buildId, done, provisioned };
 }
 
 async function setStatus(buildId: string, status: string, detail?: string): Promise<void> {
@@ -166,6 +187,7 @@ async function fail(buildId: string, message: string): Promise<void> {
 async function run(
   buildId: string,
   args: StartBuildArgs & { priceUsd: number; agentPriceUsd: number },
+  onProvisioned: () => void,
 ): Promise<BuildOutcome> {
   const deadline = Date.now() + env.limits.buildTimeoutMs;
   const requireTime = (what: string) => {
@@ -259,6 +281,7 @@ async function run(
   );
 
   await db.update(builds).set({ sandboxId: runner.id, updatedAt: new Date() }).where(eq(builds.id, buildId));
+  onProvisioned();
 
   let outcome: BuildOutcome;
 
