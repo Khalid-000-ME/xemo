@@ -57,7 +57,7 @@ BASE=https://your-deployment pnpm smoke      # same, against the deployment
 
 # the 402 challenge a PayBox agent will see
 curl -sD - -o /dev/null -X POST $BASE/api/x402/commission \
-  -H 'content-type: application/json' -d '{"prompt":"a paid resume reviewer"}' \
+  -H 'content-type: application/json' -d '{"prompt":"a paid stablecoin reserve risk checker"}' \
   | grep -i '^payment-required:' | sed 's/^[^:]*: //' | tr -d '\r' | base64 -d | jq
 
 # the MCP handshake the plugin performs

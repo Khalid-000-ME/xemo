@@ -176,7 +176,7 @@ Only do this if you intend real money to move.
 ```bash
 curl -i -X POST http://localhost:3000/api/x402/commission \
   -H 'content-type: application/json' \
-  -d '{"prompt":"Build a paid AI resume reviewer that charges $5 per review"}'
+  -d '{"prompt":"Build a paid prediction market resolution auditor that charges $5 per audit"}'
 ```
 
 You want `HTTP/1.1 402 Payment Required` and a `payment-required` header. Decode it to

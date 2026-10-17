@@ -2,7 +2,7 @@
   "name": "xemo",
   "version": "1.0.0",
   "private": true,
-  "description": "Xemo \u2014 an agent that builds, deploys and dual-rail monetizes micro-SaaS. Submitted to PayBox as Xemo.",
+  "description": "Xemo \u2014 the gateway to the institutional blockchain ecosystem: an agent that builds, deploys and dual-rail monetizes stablecoin, tokenization and prediction-market products. Submitted to PayBox as Xemo.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

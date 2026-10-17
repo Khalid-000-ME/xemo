@@ -16,7 +16,7 @@ commands in a CreateOS sandbox, deploying, and a Stripe payment completing.
 | Shot | On screen | Say |
 | --- | --- | --- |
 | 0:00 | Home page, rails panel all green | "Xemo. One prompt, and out comes a business that sells to humans *and* to agents." |
-| 0:08 | Type the brief, press build | "Build a paid AI resume reviewer, five dollars a review." |
+| 0:08 | Type the brief, press build | "Build a paid prediction market resolution auditor, five dollars an audit." |
 | 0:14 | Timeline: plan event expands, spec visible | "It writes the product spec first — the name, the positioning, what the buyer actually receives." |
 | 0:24 | Timeline: four `Wrote …` events | "Then it generates the app." |
 | 0:30 | `Install dependencies` → `Syntax-check` → `Run the smoke test` | "And here is the part that matters: it's executing in a CreateOS Firecracker microVM. npm install, a syntax check on every file, and a smoke test that boots the real server and asserts ten things against it." |
@@ -24,12 +24,12 @@ commands in a CreateOS sandbox, deploying, and a Stripe payment completing.
 | 0:52 | `Stripe product and price created` | "Stripe product and price, created by the agent." |
 | 0:58 | `Agent rail open — $0.02 per call over x402` | "And an x402 endpoint, so other *agents* can buy this too." |
 | 1:04 | Open the live app URL | "That's the deployed storefront." |
-| 1:10 | Paste a resume, click pay, `4242 4242 4242 4242` | "Real Stripe Checkout." |
+| 1:10 | Paste a market question, click pay, `4242 4242 4242 4242` | "Real Stripe Checkout." |
 | 1:22 | Result page renders the review | "Payment confirmed by webhook, and the review comes back." |
 | 1:32 | `/dashboard` | "Revenue on the left, cost of goods on the right — inference priced from the tokens it actually used, compute from real sandbox seconds. That's a measured margin, not an estimate." |
 | 1:40 | Hold on the margin figure | "From one prompt to a product with proven unit economics." |
 
-**Have ready:** a resume in your clipboard, `stripe listen` running, and the test card.
+**Have ready:** a market question and its resolution criteria in your clipboard, `stripe listen` running, and the test card.
 
 **If a build fails on camera**, don't hide it. The timeline shows the failing command and
 its output, and a failed build never got a URL or a Stripe product — that's the safety
@@ -45,7 +45,7 @@ story working. Re-run it.
 | --- | --- | --- |
 | 0:00 | `paybox-plugin/` tree in an editor | "Xemo is a PayBox marketplace plugin. Same shape as PayBox's own: a manifest, an MCP server, and skills." |
 | 0:08 | An agent with PayBox + Xemo connected | "Any PayBox-connected agent can now commission real software." |
-| 0:14 | Ask the agent: "build me a paid cold email auditor" | — |
+| 0:14 | Ask the agent: "build me a paid stablecoin reserve risk checker" | — |
 | 0:20 | Agent calls `quote_app_build`; the quote shows `priceUsd: 0.5` | "First it quotes. Xemo never spends — it hands back x402 terms and a price, and tells you the price before anything moves." |
 | 0:30 | Agent calls PayBox `pay_x402`; approval appears | "PayBox does the paying. Scoped, revocable, and it's my passkey that authorises it — not the agent." |
 | 0:40 | Approve; the paid POST goes out | "Now it pays the 402 and retries with the payment header." |

@@ -1,8 +1,9 @@
 # Xemo
 
-**One prompt in. A business that sells to humans *and* to agents out.**
+**The gateway to the institutional blockchain ecosystem. One prompt in, a live business out.**
 
-Xemo plans a product, writes it, runs it in a CreateOS Firecracker microVM,
+Xemo launches businesses for the onchain economy: stablecoin risk tools, tokenization
+readiness checks, prediction-market auditors and more. It plans a product, writes it, runs it in a CreateOS Firecracker microVM,
 publishes it to a public URL, and then opens **two** payment rails on the finished app:
 Stripe Checkout for people, and an [x402](https://x402.org) endpoint for machines. Every
 dollar in and every cent out lands in one ledger, so the app reports its own gross margin
