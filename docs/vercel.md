@@ -12,47 +12,45 @@ later and find it dead. This is the shortest path to a stable origin.
 | The timeline stream read an in-memory event bus, but the build and the viewer are *different instances* on serverless | The stream **polls the database**, which every instance agrees on. Events were already persisted first. |
 | The generated-app template is read from disk at runtime | `outputFileTracingIncludes` ships it with both build routes (verified in the build trace). |
 
-## 1. A database — Turso, about 3 minutes
+## 1. A database — Turso
+
+Create it once and keep its credentials in `.env.local` under the `*_PRODUCTION` names,
+so running the app locally never touches it:
 
 ```bash
-brew install tursodatabase/tap/turso
-turso auth login
-turso db create xemo
-turso db show xemo --url          # -> libsql://xemo-<you>.turso.io
-turso db tokens create xemo       # -> the auth token
+turso auth login --headless          # approve in the browser, then: turso config set token "$(pbpaste)"
+turso db create xemo --location aws-us-east-1     # Vercel's default region is iad1
+turso db show xemo --url                          # DATABASE_URL_PRODUCTION
+turso db tokens create xemo                       # DATABASE_AUTH_TOKEN_PRODUCTION
 ```
 
+Reading a token from the clipboard keeps it out of terminal history and out of any chat.
 The schema is created automatically on first start (`src/instrumentation.ts`); there is
-no migration step.
+no migration step. Verified against a real Turso database: the app builds its own
+tables, and the ledger's unique index rejects a duplicate payment id.
 
 ## 2. Import the repo
 
 Vercel → **Add New… → Project** → import `Khalid-000-ME/xemo`. Framework (Next.js),
 install and build commands are detected. Leave the root directory alone.
 
-## 3. Environment variables
+## 3. Environment variables — import a file, do not copy them one by one
 
-Set these for **Production** before the first deploy:
+```bash
+node scripts/vercel-env.mjs
+```
 
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | the `libsql://…` URL |
-| `DATABASE_AUTH_TOKEN` | the Turso token |
-| `GROQ_API_KEY` | as in `.env.local` |
-| `XEMO_MODEL` | `openai/gpt-oss-120b` |
-| `CREATEOS_SANDBOX_API_KEY` | as in `.env.local` |
-| `CREATEOS_SHAPE` / `CREATEOS_ROOTFS` | `s-1vcpu-1gb` / `devbox:1` |
-| `CREATEOS_MAX_CONCURRENT_SANDBOXES` | your plan's real cap |
-| `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY` | as in `.env.local` |
-| `STRIPE_WEBHOOK_SECRET` | **new** — from step 5, not the CLI listener's |
-| `X402_PAY_TO` | your payee address |
-| `X402_NETWORK` | `eip155:8453` |
-| `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` | as in `.env.local` |
-| `X402_COMMISSION_PRICE_USD` | `0.05` |
-| `X402_GENERATED_APP_PRICE_USD` | `0.02` |
+writes `.env.vercel` (gitignored, mode 600) from `.env.local` and prints only variable
+names and whether each is set. In Vercel: **Settings → Environment Variables → Import
+.env**, drag the file in, set the environment to **Production**. Delete the file after.
 
-`NEXT_PUBLIC_APP_URL` is optional on the first deploy: the app falls back to the
-production hostname Vercel injects. Set it explicitly if you attach a custom domain.
+It deliberately omits two things:
+
+- `NEXT_PUBLIC_APP_URL` — a localhost or tunnel origin. The app falls back to the
+  production hostname Vercel injects. Set it by hand only for a custom domain.
+- `STRIPE_WEBHOOK_SECRET` — the one in `.env.local` belongs to the local CLI listener. A
+  deployed endpoint has its own secret (step 5). To include it, put it in `.env.local`
+  as `STRIPE_WEBHOOK_SECRET_PRODUCTION` and rerun the script.
 
 ## 4. Deploy, then check
 

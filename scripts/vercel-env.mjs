@@ -73,8 +73,14 @@ try {
 if (env.STRIPE_WEBHOOK_SECRET_PRODUCTION) env.STRIPE_WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET_PRODUCTION;
 else delete env.STRIPE_WEBHOOK_SECRET;
 
+// Local dev keeps a file database; the deployment gets the remote one. They are
+// stored under *_PRODUCTION so running the app locally never touches it.
+if (env.DATABASE_URL_PRODUCTION) env.DATABASE_URL = env.DATABASE_URL_PRODUCTION;
+if (env.DATABASE_AUTH_TOKEN_PRODUCTION) env.DATABASE_AUTH_TOKEN = env.DATABASE_AUTH_TOKEN_PRODUCTION;
+
 const isRemoteDb = /^(libsql|https?|wss?):\/\//.test(env.DATABASE_URL ?? "");
 if (!isRemoteDb) {
+  // A file path on Vercel would silently lose data, so never emit one.
   delete env.DATABASE_URL;
   delete env.DATABASE_AUTH_TOKEN;
 }
@@ -101,7 +107,7 @@ for (const [name, state] of report) {
 const missing = report.filter(([, s]) => s === "MISSING").map(([n]) => n);
 if (missing.length) {
   console.log("\n  Missing is expected for:");
-  if (missing.includes("DATABASE_URL")) console.log("   - DATABASE_URL / DATABASE_AUTH_TOKEN  (a remote libSQL database — in progress)");
+  if (missing.includes("DATABASE_URL")) console.log("   - DATABASE_URL / DATABASE_AUTH_TOKEN  (set DATABASE_URL_PRODUCTION / DATABASE_AUTH_TOKEN_PRODUCTION in .env.local)");
   if (missing.includes("STRIPE_WEBHOOK_SECRET")) console.log("   - STRIPE_WEBHOOK_SECRET  (create the deployed webhook endpoint first, then add its secret)");
 }
 console.log("");
