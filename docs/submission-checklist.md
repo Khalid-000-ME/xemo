@@ -41,7 +41,7 @@
 - [x] No PayBox server credential required — merchant side only (see `paybox.md`)
 - [ ] PayBox account created, passkey registered, KYC completed
 - [ ] A wallet credential funded with Base Sepolia USDC, to act as the buyer on camera
-- [ ] `APPFACTORY_API_URL` + network-access hostname set in the portal
+- [ ] `XEMO_API_URL` + network-access hostname set in the portal
 - [ ] `X402_NETWORK=eip155:8453` (PayBox rejects Sepolia proposals)
 - [ ] `dist/plugin.mjs` uploaded and hosted preflight passed
 - [ ] One x402 payment actually settled against the endpoint

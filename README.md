@@ -1,8 +1,8 @@
-# AgentFoundry
+# Xemo
 
 **One prompt in. A business that sells to humans *and* to agents out.**
 
-AgentFoundry plans a product, writes it, runs it in a CreateOS Firecracker microVM,
+Xemo plans a product, writes it, runs it in a CreateOS Firecracker microVM,
 publishes it to a public URL, and then opens **two** payment rails on the finished app:
 Stripe Checkout for people, and an [x402](https://x402.org) endpoint for machines. Every
 dollar in and every cent out lands in one ledger, so the app reports its own gross margin
@@ -12,8 +12,8 @@ It is submitted to two hackathons as two faces of one engine:
 
 | Submission | What it is |
 | --- | --- |
-| **AgentFoundry** — CreateOS × Stripe | An agent that writes code, executes and tests it in a CreateOS sandbox, deploys it, and takes Stripe payments. |
-| **AppFactory** — PayBox Chapter 1 | A PayBox marketplace plugin whose MCP tools front an x402-gated build service any PayBox-connected agent can buy. |
+| **Xemo** — CreateOS × Stripe | An agent that writes code, executes and tests it in a CreateOS sandbox, deploys it, and takes Stripe payments. |
+| **Xemo** — PayBox Chapter 1 | A PayBox marketplace plugin whose MCP tools front an x402-gated build service any PayBox-connected agent can buy. |
 
 ---
 
@@ -22,7 +22,7 @@ It is submitted to two hackathons as two faces of one engine:
 Code generation is the table stakes here, not the claim. Three things make this different:
 
 **1. The generated app is an x402 *seller*, not just a Stripe seller.** Every app
-AgentFoundry ships comes online with a branded human storefront *and* a machine-readable
+Xemo ships comes online with a branded human storefront *and* a machine-readable
 agent endpoint plus `/.well-known/x402` terms. One prompt produces a business with two
 customer types on day zero.
 
@@ -31,7 +31,7 @@ cost splits into inference and metered sandbox compute. Inference cost is comput
 the token usage the provider actually reports against a real rate card, and compute from
 real sandbox seconds — so the margin on the dashboard is measured, not estimated.
 
-**3. AgentFoundry sells itself the same way it teaches its apps to sell.** The build
+**3. Xemo sells itself the same way it teaches its apps to sell.** The build
 service is itself an x402 resource at $0.50 a build. The platform is merchant of record
 for itself and for everything it ships.
 
@@ -115,7 +115,7 @@ BASE=https://your-deployment pnpm smoke
 # CreateOS compute + the rest of the stack, provisioned from the terminal
 npm install -g @stripe/cli
 stripe plugin install projects
-stripe projects init agentfoundry
+stripe projects init xemo
 stripe projects add createos/project    # creates the account, writes .env
 stripe projects env --pull
 ```
@@ -135,11 +135,11 @@ paybox-plugin/
 ├── .grok-plugin/plugin.json          manifest
 ├── .mcp.json                         → your deployment's /api/mcp
 └── skills/
-    ├── appfactory-commission-apps/   quoting, paying, waiting out a build
-    └── appfactory-operate-apps/      reading economics, buying from an app
+    ├── xemo-commission-apps/   quoting, paying, waiting out a build
+    └── xemo-operate-apps/      reading economics, buying from an app
 ```
 
-AppFactory's MCP tools are **read-only and never spend**. They quote a price and hand
+Xemo's MCP tools are **read-only and never spend**. They quote a price and hand
 back x402 terms; PayBox's `pay_x402` does the paying, which keeps payment authority with
 PayBox and the user's passkey.
 

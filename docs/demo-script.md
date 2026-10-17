@@ -15,7 +15,7 @@ commands in a CreateOS sandbox, deploying, and a Stripe payment completing.
 
 | Shot | On screen | Say |
 | --- | --- | --- |
-| 0:00 | Home page, rails panel all green | "AgentFoundry. One prompt, and out comes a business that sells to humans *and* to agents." |
+| 0:00 | Home page, rails panel all green | "Xemo. One prompt, and out comes a business that sells to humans *and* to agents." |
 | 0:08 | Type the brief, press build | "Build a paid AI resume reviewer, five dollars a review." |
 | 0:14 | Timeline: plan event expands, spec visible | "It writes the product spec first — the name, the positioning, what the buyer actually receives." |
 | 0:24 | Timeline: four `Wrote …` events | "Then it generates the app." |
@@ -37,16 +37,16 @@ story working. Re-run it.
 
 ---
 
-## 2. PayBox — AppFactory — 75 seconds
+## 2. PayBox — Xemo — 75 seconds
 
 **Requirements:** a live plugin working end to end, and this video posted to X.
 
 | Shot | On screen | Say |
 | --- | --- | --- |
-| 0:00 | `paybox-plugin/` tree in an editor | "AppFactory is a PayBox marketplace plugin. Same shape as PayBox's own: a manifest, an MCP server, and skills." |
-| 0:08 | An agent with PayBox + AppFactory connected | "Any PayBox-connected agent can now commission real software." |
+| 0:00 | `paybox-plugin/` tree in an editor | "Xemo is a PayBox marketplace plugin. Same shape as PayBox's own: a manifest, an MCP server, and skills." |
+| 0:08 | An agent with PayBox + Xemo connected | "Any PayBox-connected agent can now commission real software." |
 | 0:14 | Ask the agent: "build me a paid cold email auditor" | — |
-| 0:20 | Agent calls `quote_app_build`; the quote shows `priceUsd: 0.5` | "First it quotes. AppFactory never spends — it hands back x402 terms and a price, and tells you the price before anything moves." |
+| 0:20 | Agent calls `quote_app_build`; the quote shows `priceUsd: 0.5` | "First it quotes. Xemo never spends — it hands back x402 terms and a price, and tells you the price before anything moves." |
 | 0:30 | Agent calls PayBox `pay_x402`; approval appears | "PayBox does the paying. Scoped, revocable, and it's my passkey that authorises it — not the agent." |
 | 0:40 | Approve; the paid POST goes out | "Now it pays the 402 and retries with the payment header." |
 | 0:48 | Build runs; agent reports `appUrl` + `agentEndpoint` | "And it gets back a deployed app — with a Stripe checkout for people, and its own x402 endpoint for other agents." |

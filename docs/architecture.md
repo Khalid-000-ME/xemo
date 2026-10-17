@@ -118,16 +118,16 @@ the HTTP method is omitted from the declare input (the resource server fills it 
 
 ## PayBox: merchant first, spender second
 
-The original plan had AgentFoundry implement OAuth 2.1 + PKCE as a PayBox *client*. That
+The original plan had Xemo implement OAuth 2.1 + PKCE as a PayBox *client*. That
 is hours of work for a role this product does not have.
 
-**Chosen:** AgentFoundry is primarily the merchant. PayBox-connected agents are the
+**Chosen:** Xemo is primarily the merchant. PayBox-connected agents are the
 customers, so all that is required is being a correct x402 resource server. The MCP tools
 quote and never spend; `pay_x402` on the agent's side does the paying, keeping authority
 with PayBox and the user's passkey.
 
 An **outbound** client existed briefly — a real implementation against
-`api.paybox.sh/mcp` that called `use_service` so AgentFoundry could buy from other x402
+`api.paybox.sh/mcp` that called `use_service` so Xemo could buy from other x402
 endpoints. It was deleted, because nothing imported it: the submission is the inbound
 direction, and the cost it was meant to pay (model inference) is not sold over x402
 anyway. Booking real token usage against a rate card is both honest and simpler. The

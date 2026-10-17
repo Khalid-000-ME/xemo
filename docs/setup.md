@@ -1,6 +1,6 @@
 # Setup
 
-AgentFoundry has **no simulated mode**. Every rail is real, so it needs real
+Xemo has **no simulated mode**. Every rail is real, so it needs real
 credentials before a build will start. This is the order to do it in; each step says how
 to verify it worked before moving on.
 
@@ -28,7 +28,7 @@ start.
 1. Go to <https://console.anthropic.com> → **API keys** → create a key.
 2. `ANTHROPIC_API_KEY=sk-ant-...`
 
-The model defaults to `claude-sonnet-5-5`. Override with `AGENTFOUNDRY_MODEL`, but only
+The model defaults to `claude-sonnet-5-5`. Override with `XEMO_MODEL`, but only
 to a model listed in `src/lib/pricing.ts` — an unpriced model throws rather than having
 its cost guessed.
 
@@ -46,7 +46,7 @@ Either provision it through Stripe Projects (which creates the CreateOS account 
 ```bash
 npm install -g @stripe/cli
 stripe plugin install projects
-stripe projects init agentfoundry
+stripe projects init xemo
 stripe projects add createos/project
 stripe projects env --pull
 ```
@@ -61,7 +61,7 @@ CREATEOS_ROOTFS=devbox:1
 
 > **Plan limits matter here.** The **Free** plan runs **one** concurrent sandbox and only
 > 10 per day, and *paused* sandboxes still count against the cap — a create over the cap
-> fails with `429` rather than queueing. AgentFoundry reclaims its own oldest sandboxes
+> fails with `429` rather than queueing. Xemo reclaims its own oldest sandboxes
 > to stay inside `CREATEOS_MAX_CONCURRENT_SANDBOXES`, but with that set to 1 each new
 > build destroys the previous app. **For a demo where several apps must stay live at
 > once, use the Beginner plan (5 concurrent) and set the variable to match:**
@@ -192,7 +192,7 @@ curl -sD - -o /dev/null -X POST http://localhost:3000/api/x402/commission \
 
 ## 5. PayBox — no server credential needed
 
-There is nothing to put in `.env.local` for PayBox. AgentFoundry is a **merchant** on
+There is nothing to put in `.env.local` for PayBox. Xemo is a **merchant** on
 PayBox, not a spender: PayBox-connected agents discover and pay the x402 endpoints from
 step 4, and that needs no key on this side.
 
@@ -213,7 +213,7 @@ NEXT_PUBLIC_APP_URL=https://your-deployment
 Then point the PayBox plugin at it — `paybox-plugin/.mcp.json`:
 
 ```json
-{ "mcpServers": { "appfactory": { "type": "http", "url": "https://your-deployment/api/mcp" } } }
+{ "mcpServers": { "xemo": { "type": "http", "url": "https://your-deployment/api/mcp" } } }
 ```
 
 ---

@@ -8,7 +8,7 @@ Both points are recorded here.
 
 ## The correction: PayBox hosts the plugin, it does not call a URL
 
-The first implementation packaged AppFactory the way `moonpay/paybox-plugin` is packaged
+The first implementation packaged Xemo the way `moonpay/paybox-plugin` is packaged
 — a `.grok-plugin/plugin.json` plus a `.mcp.json` pointing at a hosted MCP server. That
 is how PayBox ships **its own** plugin to agent hosts. It is **not** what the hackathon
 accepts.
@@ -25,7 +25,7 @@ toolchain and conformance harness.
 
 ## Direction 1 — inbound: agents pay *us*. This is the submission.
 
-A PayBox-connected agent commissions a build and gets a deployed app back. AgentFoundry
+A PayBox-connected agent commissions a build and gets a deployed app back. Xemo
 is the **merchant**; the agent's wallet, passkey and approval are all on their side.
 
 | Piece | Where |
@@ -53,7 +53,7 @@ x402. Booking real token usage against a rate card is honest and simpler.
 |---|---|---|
 | `commission_app` | **No** | Returns an unsigned **x402 proposal**. Nothing is paid here. |
 | `get_build` | Yes | Status, URLs and economics of a build. Read-only, free. |
-| `list_apps` | Yes | Everything AppFactory has deployed. Read-only, free. |
+| `list_apps` | Yes | Everything Xemo has deployed. Read-only, free. |
 
 `commission_app` makes no network call at all — it builds a proposal and returns it.
 PayBox fetches the live 402, checks it against the proposal, and pays only with the
@@ -115,7 +115,7 @@ PayBox's sandbox calls your API. `localhost` is unreachable from it, and `propos
 rejects any non-HTTPS URL outright. You need a public origin for:
 
 - `NEXT_PUBLIC_APP_URL` (payment requirements and generated apps are built from it),
-- `APPFACTORY_API_URL` (the plugin variable, set in the portal),
+- `XEMO_API_URL` (the plugin variable, set in the portal),
 - the portal's **network access** allowlist — exact hostname, no wildcards.
 
 ---
@@ -141,9 +141,9 @@ the hosted check cannot fail for a reason unrelated to the plugin.
 Under **Test & configure**:
 
 - **Network access** → add your platform's exact hostname (no scheme, no wildcard).
-- **Variables** → `APPFACTORY_API_URL` = `https://your-deployment`
+- **Variables** → `XEMO_API_URL` = `https://your-deployment`
 
-No secrets are required. AppFactory's API needs no credential from the plugin: the
+No secrets are required. Xemo's API needs no credential from the plugin: the
 commission endpoint is paid for with x402, and the read endpoints are public.
 
 ### Account prerequisites
@@ -176,4 +176,4 @@ needs to read. One engine, two front doors — say that rather than hiding it.
 
 There is nothing to submit. A resource is indexed after it **settles** a payment through
 a facilitator that indexes bazaar metadata, which is why the declaration lives in the 402
-challenge and why settling one real payment is what gets AppFactory listed.
+challenge and why settling one real payment is what gets Xemo listed.
