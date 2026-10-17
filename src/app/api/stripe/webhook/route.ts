@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { env } from "@/lib/env";
-import { stripe, stripeConfigured } from "@/lib/stripe/client";
+import { stripe } from "@/lib/stripe/client";
 import { fulfil } from "@/lib/agent/fulfil";
 import { post } from "@/lib/ledger";
 import { fail, ok } from "@/lib/http";
@@ -19,9 +19,12 @@ export const maxDuration = 300;
  * no second row and re-fulfils nothing.
  */
 export async function POST(req: Request) {
-  if (!stripeConfigured()) return fail(503, "STRIPE_NOT_CONFIGURED", "STRIPE_SECRET_KEY is not set");
-  if (!env.stripe.webhookSecret) {
-    return fail(503, "WEBHOOK_SECRET_MISSING", "STRIPE_WEBHOOK_SECRET is not set; refusing to trust this payload");
+  if (!env.stripe.secretKey || !env.stripe.webhookSecret) {
+    return fail(
+      503,
+      "STRIPE_NOT_CONFIGURED",
+      "STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are both required; refusing to trust an unverifiable payload",
+    );
   }
 
   const signature = req.headers.get("stripe-signature");

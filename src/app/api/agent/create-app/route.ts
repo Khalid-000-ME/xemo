@@ -1,4 +1,5 @@
 import { startBuild, ValidationError } from "@/lib/agent/orchestrator";
+import { MissingCredentialsError } from "@/lib/env";
 import { fail, numOr, ok, readJson, str } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -25,6 +26,9 @@ export async function POST(req: Request) {
     return ok({ buildId, status: "queued", timelineUrl: `/build/${buildId}` }, 202);
   } catch (err) {
     if (err instanceof ValidationError) return fail(400, err.code, err.message);
+    if (err instanceof MissingCredentialsError) {
+      return fail(503, err.code, err.message, { missing: err.missing });
+    }
     return fail(500, "BUILD_START_FAILED", err instanceof Error ? err.message : "could not start the build");
   }
 }

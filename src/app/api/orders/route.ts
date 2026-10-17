@@ -49,14 +49,12 @@ export async function POST(req: Request) {
       cancelUrl: `${build.appUrl}/?cancelled=${orderId}`,
     });
 
-    if (session.sessionId) {
-      await db
-        .update(orders)
-        .set({ stripeSessionId: session.sessionId, updatedAt: new Date() })
-        .where(eq(orders.id, orderId));
-    }
+    await db
+      .update(orders)
+      .set({ stripeSessionId: session.sessionId, updatedAt: new Date() })
+      .where(eq(orders.id, orderId));
 
-    return ok({ orderId, checkoutUrl: session.url, simulated: session.simulated });
+    return ok({ orderId, checkoutUrl: session.url });
   } catch (err) {
     await db.update(orders).set({ status: "failed", updatedAt: new Date() }).where(eq(orders.id, orderId));
     return fail(502, "CHECKOUT_FAILED", err instanceof Error ? err.message : "could not create a checkout session");

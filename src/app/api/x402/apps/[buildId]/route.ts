@@ -69,7 +69,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   const paymentId = req.headers.get("x-payment")?.slice(0, 120) ?? null;
 
   try {
-    const { result, simulated, note } = await fulfil({ buildId, input, rail: "agent" });
+    const { result } = await fulfil({ buildId, input, rail: "agent" });
 
     await post({
       buildId,
@@ -83,12 +83,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     });
 
     return NextResponse.json(
-      {
-        buildId,
-        productName: build.productName,
-        result,
-        ...(simulated ? { simulated: true, note } : {}),
-      },
+      { buildId, productName: build.productName, result },
       { status: 200 },
     );
   } catch (err) {

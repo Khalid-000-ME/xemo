@@ -3,7 +3,7 @@ import { withX402 } from "@x402/next";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 import { startBuild, ValidationError } from "@/lib/agent/orchestrator";
 import { accepts, resourceServer, x402Configured } from "@/lib/x402/server";
-import { env } from "@/lib/env";
+import { env, MissingCredentialsError } from "@/lib/env";
 import { fail, numOr, readJson, str } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -69,7 +69,6 @@ const discovery = declareDiscoveryExtension({
         humanPriceUsd: { type: "number" },
         agentPriceUsd: { type: "number" },
         buildSeconds: { type: "number" },
-        simulated: { type: "boolean" },
       },
     },
   },
@@ -117,13 +116,17 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         humanPriceUsd: body.priceUsd === undefined ? 5 : numOr(body.priceUsd, 5),
         agentPriceUsd: env.x402.generatedAppPriceUsd,
         buildSeconds: Math.round((Date.now() - startedAt) / 1000),
-        simulated: outcome.simulated,
         timelineUrl: `${env.appUrl}/build/${buildId}`,
       },
       { status: 200 },
     );
   } catch (err) {
     if (err instanceof ValidationError) return fail(400, err.code, err.message);
+    if (err instanceof MissingCredentialsError) {
+      // Non-2xx, so the facilitator never settles: an agent is not charged
+      // because the operator left a credential unset.
+      return fail(503, err.code, err.message, { missing: err.missing });
+    }
     return fail(500, "COMMISSION_FAILED", err instanceof Error ? err.message : "could not commission the build");
   }
 }

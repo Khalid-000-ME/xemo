@@ -36,7 +36,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ buildId: strin
     productName: build.productName,
     template: build.template,
     brandColor: build.brandColor,
-    simulated: build.simulated,
     appUrl: build.appUrl,
     sandboxId: build.sandboxId,
     humanPriceUsd: build.humanPriceUsd,
