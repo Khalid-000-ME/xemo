@@ -1,7 +1,7 @@
 /**
- * AppFactory — a PayBox marketplace plugin.
+ * Xemo — a PayBox marketplace plugin.
  *
- * Commission a real micro-SaaS. Describe a product and AgentFoundry writes it,
+ * Commission a real micro-SaaS. Describe a product and Xemo writes it,
  * tests it inside a Firecracker microVM, deploys it to a public URL, and opens
  * both payment rails on the finished app: Stripe Checkout for people, and an
  * x402 endpoint so other agents can buy it too.
@@ -28,7 +28,7 @@ import { atomicAmount, proposeX402, x402OutputSchema } from "./paybox.js";
 const PROTOCOL_VERSION = "2026-07-28";
 
 /**
- * Where AgentFoundry runs. Set as a plugin variable in the portal, and the same
+ * Where Xemo runs. Set as a plugin variable in the portal, and the same
  * hostname must also be added under network access.
  *
  * There is deliberately no default. A placeholder would turn "you forgot to set
@@ -36,7 +36,7 @@ const PROTOCOL_VERSION = "2026-07-28";
  * exist, which is the hardest kind of misconfiguration to diagnose from a test
  * result.
  */
-const ENV_API_BASE = process.env.APPFACTORY_API_URL?.trim();
+const ENV_API_BASE = process.env.XEMO_API_URL?.trim();
 
 /**
  * Resolve the origin for one call: the explicit argument wins, then the plugin
@@ -49,7 +49,7 @@ function resolveApiBase(override?: string): { base: string } | { problem: string
   if (!raw) {
     return {
       problem:
-        "No AppFactory origin. Either pass `apiBase`, or set APPFACTORY_API_URL in the " +
+        "No Xemo origin. Either pass `apiBase`, or set XEMO_API_URL in the " +
         "PayBox portal under Test & configure -> Variables, and add that same hostname " +
         "under Network access.",
     };
@@ -59,10 +59,10 @@ function resolveApiBase(override?: string): { base: string } | { problem: string
   try {
     url = new URL(raw);
   } catch {
-    return { problem: `AppFactory origin is not a valid URL: "${raw}".` };
+    return { problem: `Xemo origin is not a valid URL: "${raw}".` };
   }
   if (url.protocol !== "https:") {
-    return { problem: `AppFactory origin must be https, got "${raw}".` };
+    return { problem: `Xemo origin must be https, got "${raw}".` };
   }
   return { base: raw };
 }
@@ -72,7 +72,7 @@ const apiBaseInput = z
   .url()
   .max(2048)
   .optional()
-  .describe("AppFactory origin, e.g. https://your-host.example. Defaults to the APPFACTORY_API_URL variable.");
+  .describe("Xemo origin, e.g. https://your-host.example. Defaults to the XEMO_API_URL variable.");
 
 /** USDC has six decimals on both Base and Solana. */
 const USDC_DECIMALS = 6;
@@ -110,18 +110,18 @@ async function readJson(base: string, path: string, timeoutMs = 7000): Promise<u
       }
     })();
     throw new Error(
-      `Could not reach AppFactory at ${target} (${cause}). Check, in the PayBox portal: ` +
+      `Could not reach Xemo at ${target} (${cause}). Check, in the PayBox portal: ` +
         `(1) Network access lists the exact hostname "${host}" — no scheme, no path, no wildcard; ` +
-        `(2) Variables sets APPFACTORY_API_URL to the same origin; ` +
+        `(2) Variables sets XEMO_API_URL to the same origin; ` +
         `(3) that host is actually serving right now.`,
     );
   }
 
   const body = await response.text();
-  if (body.length > 256 * 1024) throw new Error("AppFactory returned an unexpectedly large response.");
+  if (body.length > 256 * 1024) throw new Error("Xemo returned an unexpectedly large response.");
 
   if (!response.ok) {
-    let message = `AppFactory responded ${response.status}`;
+    let message = `Xemo responded ${response.status}`;
     try {
       const parsed = JSON.parse(body) as { error?: { message?: string } };
       if (parsed.error?.message) message = parsed.error.message;
@@ -134,7 +134,7 @@ async function readJson(base: string, path: string, timeoutMs = 7000): Promise<u
   try {
     return JSON.parse(body);
   } catch {
-    throw new Error("AppFactory returned a response that was not JSON.");
+    throw new Error("Xemo returned a response that was not JSON.");
   }
 }
 
@@ -171,7 +171,7 @@ const buildSchema = z
 
 function createServer() {
   const server = new McpServer(
-    { name: "appfactory", version: "1.0.0" },
+    { name: "xemo", version: "1.0.0" },
     { supportedProtocolVersions: [PROTOCOL_VERSION] },
   );
 
@@ -250,7 +250,7 @@ function createServer() {
     {
       title: "Get a build",
       description:
-        "Look up a build commissioned through AppFactory: its status, its public URL, the x402 endpoint " +
+        "Look up a build commissioned through Xemo: its status, its public URL, the x402 endpoint " +
         "agents can buy from, and its revenue and cost. Read-only and free. Poll this after paying " +
         "rather than commissioning again — a build usually reaches `live` within a minute.",
       inputSchema: z
@@ -307,7 +307,7 @@ function createServer() {
     {
       title: "List deployed apps",
       description:
-        "List micro-SaaS apps AppFactory has deployed, newest first, with their public URLs and both " +
+        "List micro-SaaS apps Xemo has deployed, newest first, with their public URLs and both " +
         "prices. Read-only and free.",
       inputSchema: z
         .object({
@@ -331,7 +331,7 @@ function createServer() {
         const apps = (raw.apps ?? []).map((a) => buildSchema.parse(a));
         const summary =
           apps.length === 0
-            ? "AppFactory has not deployed any apps yet."
+            ? "Xemo has not deployed any apps yet."
             : apps.map((a) => `${a.productName} — ${a.status}${a.appUrl ? ` — ${a.appUrl}` : ""}`).join("\n");
         return textAnd(summary, { count: apps.length, apps });
       } catch (error) {
