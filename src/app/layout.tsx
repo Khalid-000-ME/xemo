@@ -10,7 +10,7 @@ const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["nor
 export const metadata: Metadata = {
   title: "Xemo",
   description:
-    "An agent that builds, deploys and monetizes a micro-SaaS from one prompt — selling to humans over Stripe and to agents over x402.",
+    "The gateway to the institutional blockchain ecosystem. One prompt launches a stablecoin, tokenization or prediction-market business, selling to humans over Stripe and to agents over x402.",
 };
 
 export const viewport: Viewport = {
