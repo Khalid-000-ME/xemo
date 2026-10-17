@@ -89,16 +89,42 @@ a secret key without a signing secret is not a usable configuration.
    STRIPE_SECRET_KEY=sk_test_...
    STRIPE_PUBLISHABLE_KEY=pk_test_...
    ```
-3. For local development, get a signing secret by forwarding events:
+3. Install the CLI. On macOS use Homebrew — a global npm install needs write access to
+   the npm prefix and usually fails with `EACCES`:
    ```bash
-   stripe listen --forward-to localhost:3000/api/stripe/webhook
+   brew install stripe/stripe-cli/stripe
    ```
-   It prints `whsec_...` — put that in `STRIPE_WEBHOOK_SECRET` and leave the command
-   running. For a deployed instance, create the endpoint in the dashboard against
-   `https://<your-url>/api/stripe/webhook` and copy its signing secret instead.
+4. Forward events to the local app. **CLI 1.50+ requires `--events`** — the bare command
+   exits with `must specify events to forward`. Passing `--api-key` also skips the
+   browser `stripe login`:
+   ```bash
+   stripe listen \
+     --api-key "$STRIPE_SECRET_KEY" \
+     --events checkout.session.completed,checkout.session.expired,payment_intent.payment_failed \
+     --forward-to localhost:3000/api/stripe/webhook
+   ```
+   It prints `Your webhook signing secret is whsec_...`. Put that in
+   `STRIPE_WEBHOOK_SECRET` and **leave the command running** — no listener means no
+   webhook, and an order stays on `created` forever.
 
-**Verify:** `pnpm smoke` shows `● Stripe · human rail`. Test card: `4242 4242 4242 4242`,
-any future expiry, any CVC.
+   To read the secret without starting the listener:
+   `stripe listen --api-key "$STRIPE_SECRET_KEY" --print-secret`
+
+   For a deployed instance, create the endpoint in the dashboard against
+   `https://<your-url>/api/stripe/webhook` and use its signing secret instead.
+
+**Verify:** `pnpm smoke` shows `● Stripe · human rail` **and** the webhook section reads
+"refuses an unsigned payload" rather than "refuses to trust an unverifiable payload" —
+the second means the secret is still missing. To prove the signed path end to end:
+
+```bash
+stripe trigger checkout.session.completed --api-key "$STRIPE_SECRET_KEY"
+```
+
+The listener should log `<-- [200] POST .../api/stripe/webhook`. A `400` there means the
+stored secret and the running listener disagree.
+
+Test card: `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ---
 
@@ -203,4 +229,8 @@ home page and confirm the timeline reaches **live**.
 | `npm run typecheck` fails in the sandbox | A template placeholder did not render. The renderer asserts this, so the build fails rather than shipping a broken app. |
 | Deployed app URL does not resolve over HTTPS | A fresh ingress hostname can serve before its TLS certificate lands; the runner probes and falls back to `http`. |
 | Order stuck on `created` | The webhook never arrived. Is `stripe listen` still running, and does its secret match? |
+| `stripe: command not found` | CLI not installed — `brew install stripe/stripe-cli/stripe`. |
+| `must specify events to forward` | CLI 1.50+ needs `--events`; see step 4 above. |
+| `npm install -g @stripe/cli` fails `EACCES` | No write access to the npm prefix. Use Homebrew instead. |
+| Webhook returns `400` on a triggered event | `STRIPE_WEBHOOK_SECRET` does not match the running listener. Re-read it with `--print-secret`. |
 | x402 route answers `503` | `X402_PAY_TO` is unset. |
