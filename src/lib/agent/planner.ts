@@ -19,6 +19,9 @@ Hard constraints on what you may specify:
   say what makes the output good. Be specific to this product, not generic.
 - buildSteps are the plain-English steps shown on a live build timeline. Make
   them concrete and specific to this product.
+- unit is ONE lowercase noun naming what a purchase buys ("review", "audit",
+  "summary"). Never a price, never a phrase: the storefront renders it as
+  "$4.00 per <unit>".
 - productName is a real product name, not a description. slug is its
   kebab-case form.
 

@@ -50,6 +50,21 @@ export const productSpecSchema = z.object({
 export type ProductSpec = z.infer<typeof productSpecSchema>;
 export type OutputField = z.infer<typeof outputFieldSchema>;
 
+/**
+ * A unit is a single noun. Models sometimes return "$4 per audit"; keep what
+ * follows "per", and fall back to the last word, so the storefront never
+ * renders "$4.00 per $4 per audit".
+ */
+function cleanUnit(raw: string): string {
+  let unit = raw.trim().toLowerCase();
+  const afterPer = /\bper\s+(.+)$/.exec(unit);
+  if (afterPer) unit = afterPer[1];
+  unit = unit.replace(/[^a-z0-9 -]/g, "").trim();
+  if (!/[a-z]/.test(unit)) return "request";
+  const words = unit.split(/\s+/).filter(Boolean);
+  return (words.length > 2 ? words.slice(-1)[0] : words.join(" ")).slice(0, 24) || "request";
+}
+
 /** Trim a generated spec to the lengths the UI and storefront are built for. */
 export function normalizeSpec(spec: ProductSpec): ProductSpec {
   const cut = (value: string, max: number) =>
@@ -60,7 +75,7 @@ export function normalizeSpec(spec: ProductSpec): ProductSpec {
     productName: cut(spec.productName.trim(), 60),
     slug: spec.slug.slice(0, 40).replace(/-+$/, "") || "micro-saas",
     tagline: cut(spec.tagline.trim(), 160),
-    unit: cut(spec.unit.trim(), 24),
+    unit: cleanUnit(spec.unit),
     inputLabel: cut(spec.inputLabel.trim(), 80),
     outputFields: spec.outputFields.map((f) => ({
       ...f,
