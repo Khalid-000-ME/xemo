@@ -3,17 +3,14 @@ import { generateObject } from "ai";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { builds, orders } from "@/lib/db/schema";
-import { env } from "@/lib/env";
+import { env, requireModel } from "@/lib/env";
 import { post } from "@/lib/ledger";
-import { deliverableSchema, type ProductSpec, productSpecSchema, sampleOutput } from "./spec";
-
-/** Cost of one fulfilment inference, booked against the build's margin. */
-const FULFIL_COST_USD = 0.03;
+import { inferenceCostUsd } from "@/lib/pricing";
+import { deliverableSchema, type ProductSpec, productSpecSchema } from "./spec";
 
 export type FulfilResult = {
   result: Record<string, unknown>;
-  simulated: boolean;
-  note?: string;
+  costUsd: number;
 };
 
 function specOf(build: { plan: unknown }): ProductSpec | null {
@@ -24,10 +21,10 @@ function specOf(build: { plan: unknown }): ProductSpec | null {
 /**
  * Produce the deliverable a buyer paid for.
  *
- * Shared by both rails: a Stripe webhook calls it after `checkout.session.completed`,
- * and the x402 route calls it once a payment is verified. When no model key is
- * present it returns the spec's own sample output, clearly marked simulated,
- * rather than failing a paid order.
+ * Shared by both rails: the Stripe webhook calls it after
+ * `checkout.session.completed`, and the x402 gateway calls it once a payment is
+ * verified. It throws on failure rather than returning placeholder output —
+ * the caller answers non-2xx, which is what stops an x402 payment settling.
  */
 export async function fulfil(args: {
   buildId: string;
@@ -35,26 +32,18 @@ export async function fulfil(args: {
   orderId?: string;
   rail: "human" | "agent";
 }): Promise<FulfilResult> {
+  requireModel();
+
   const [build] = await db.select().from(builds).where(eq(builds.id, args.buildId)).limit(1);
   if (!build) throw new Error(`unknown build ${args.buildId}`);
 
   const spec = specOf(build);
   if (!spec) throw new Error(`build ${args.buildId} has no usable product specification`);
 
-  if (!env.anthropicApiKey) {
-    const result = sampleOutput(spec);
-    if (args.orderId) await completeOrder(args.orderId, result);
-    return {
-      result,
-      simulated: true,
-      note: "ANTHROPIC_API_KEY not set — returned the specification's sample output",
-    };
-  }
-
   const anthropic = createAnthropic({ apiKey: env.anthropicApiKey });
 
   try {
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: anthropic(env.agentModel),
       schema: deliverableSchema(spec),
       system: `You are the fulfilment engine for "${spec.productName}" — ${spec.tagline}
@@ -66,24 +55,36 @@ advice. If the submission is too thin to judge, say so plainly in the text
 fields and score it accordingly.`,
       prompt: `Produce the deliverable for this submission:\n\n---\n${args.input.slice(0, 40_000)}\n---`,
       maxRetries: 2,
-      abortSignal: AbortSignal.timeout(120_000),
+      abortSignal: AbortSignal.timeout(180_000),
     });
+
+    const costUsd = inferenceCostUsd(env.agentModel, usage);
 
     await post({
       buildId: args.buildId,
-      provider: "paybox",
+      provider: "anthropic",
       rail: "supplier",
       direction: "outflow",
-      amountUsd: FULFIL_COST_USD,
+      amountUsd: costUsd,
       purpose: "llm_inference",
       externalId: args.orderId ? `fulfil:${args.orderId}` : null,
-      settled: Boolean(env.paybox.apiKey),
-      metadata: { stage: "fulfilment", model: env.agentModel, rail: args.rail },
+      metadata: {
+        stage: "fulfilment",
+        model: env.agentModel,
+        rail: args.rail,
+        inputTokens: usage.inputTokens ?? 0,
+        outputTokens: usage.outputTokens ?? 0,
+      },
     });
 
     const result = object as Record<string, unknown>;
-    if (args.orderId) await completeOrder(args.orderId, result);
-    return { result, simulated: false };
+    if (args.orderId) {
+      await db
+        .update(orders)
+        .set({ status: "complete", result, updatedAt: new Date() })
+        .where(eq(orders.id, args.orderId));
+    }
+    return { result, costUsd };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (args.orderId) {
@@ -94,11 +95,4 @@ fields and score it accordingly.`,
     }
     throw new Error(`fulfilment failed: ${message}`);
   }
-}
-
-async function completeOrder(orderId: string, result: Record<string, unknown>): Promise<void> {
-  await db
-    .update(orders)
-    .set({ status: "complete", result, updatedAt: new Date() })
-    .where(eq(orders.id, orderId));
 }
