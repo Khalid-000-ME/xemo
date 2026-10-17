@@ -1,13 +1,12 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { builds, generatedFiles } from "@/lib/db/schema";
-import { env } from "@/lib/env";
+import { env, MissingCredentialsError, requireBuildReady } from "@/lib/env";
 import { recordEvent } from "@/lib/events";
 import { newBuildId, newFileId } from "@/lib/ids";
 import { computeCostUsd, post } from "@/lib/ledger";
-import { LocalRunner } from "@/lib/createos/local-runner";
 import { SandboxRunner } from "@/lib/createos/sandbox-runner";
-import { APP_PORT, type Runner } from "@/lib/createos/runner";
+import { APP_PORT } from "@/lib/createos/runner";
 import { provisionProduct } from "@/lib/stripe/products";
 import { generateApp } from "./codegen";
 import { planProduct } from "./planner";
@@ -46,9 +45,7 @@ export type BuildOutcome = {
   buildId: string;
   status: "live" | "failed";
   appUrl: string | null;
-  checkoutUrl: string | null;
   agentEndpoint: string | null;
-  simulated: boolean;
   error?: string;
   spec?: ProductSpec;
 };
@@ -88,22 +85,23 @@ function validate(args: StartBuildArgs): { priceUsd: number; agentPriceUsd: numb
   /**
    * The agent rail is priced by the platform, not per build: the x402 resource
    * server advertises one price for the generated-app gateway, so a per-build
-   * override would advertise a figure the gateway does not actually charge.
+   * override would advertise a figure the gateway does not charge.
    */
-  const agentPriceUsd = env.x402.generatedAppPriceUsd;
-
-  return { priceUsd, agentPriceUsd };
+  return { priceUsd, agentPriceUsd: env.x402.generatedAppPriceUsd };
 }
 
 /**
  * Start a build and return immediately with its id.
  *
- * The caller decides whether to await `done`: the dashboard streams the
- * timeline instead, while the x402 and MCP entry points wait so an agent gets
- * a finished app in one round trip.
+ * Refuses up front unless every required rail is configured — there is no
+ * simulated mode, so a missing credential is an error before any work or spend.
  */
 export async function startBuild(args: StartBuildArgs): Promise<BuildHandle> {
+  // Shape of the request first, then the operator's configuration: a malformed
+  // request is a 400 whatever the environment looks like, and reporting a
+  // missing credential for it would send the caller after the wrong problem.
   const { priceUsd, agentPriceUsd } = validate(args);
+  requireBuildReady();
   const buildId = newBuildId();
 
   await db.insert(builds).values({
@@ -140,15 +138,7 @@ export async function startBuild(args: StartBuildArgs): Promise<BuildHandle> {
     async (err): Promise<BuildOutcome> => {
       const message = err instanceof Error ? err.message : String(err);
       await fail(buildId, message);
-      return {
-        buildId,
-        status: "failed",
-        appUrl: null,
-        checkoutUrl: null,
-        agentEndpoint: null,
-        simulated: true,
-        error: message,
-      };
+      return { buildId, status: "failed", appUrl: null, agentEndpoint: null, error: message };
     },
   );
 
@@ -176,16 +166,19 @@ async function run(
 ): Promise<BuildOutcome> {
   const deadline = Date.now() + env.limits.buildTimeoutMs;
   const requireTime = (what: string) => {
-    if (Date.now() > deadline) throw new Error(`build exceeded its ${env.limits.buildTimeoutMs / 1000}s budget at ${what}`);
+    if (Date.now() > deadline) {
+      throw new Error(`build exceeded its ${env.limits.buildTimeoutMs / 1000}s budget at ${what}`);
+    }
   };
 
   // ---- 1. Plan -------------------------------------------------------------
   await setStatus(buildId, "planning");
-  const { spec, source, note } = await planProduct({
+  const plan = await planProduct({
     brief: args.prompt,
     productName: args.productName,
     priceUsd: args.priceUsd,
   });
+  const spec = plan.spec;
   requireTime("planning");
 
   await db
@@ -197,23 +190,26 @@ async function run(
     buildId,
     "plan",
     `Planned "${spec.productName}" — ${spec.buildSteps.length} steps`,
-    [note, spec.tagline].filter(Boolean).join(" · "),
-    { source, spec },
+    spec.tagline,
+    { spec, model: env.agentModel, inputTokens: plan.inputTokens, outputTokens: plan.outputTokens },
   );
 
-  if (source === "model") {
-    // Planner inference is a real cost of goods; price it into the margin.
-    await post({
-      buildId,
-      provider: "paybox",
-      rail: "supplier",
-      direction: "outflow",
-      amountUsd: 0.012,
-      purpose: "llm_inference",
-      settled: Boolean(env.paybox.apiKey),
-      metadata: { stage: "planner", model: env.agentModel },
-    });
-  }
+  // Planner inference is a real cost of goods, priced from reported usage.
+  await post({
+    buildId,
+    provider: "anthropic",
+    rail: "supplier",
+    direction: "outflow",
+    amountUsd: plan.costUsd,
+    purpose: "llm_inference",
+    externalId: `plan:${buildId}`,
+    metadata: {
+      stage: "planner",
+      model: env.agentModel,
+      inputTokens: plan.inputTokens,
+      outputTokens: plan.outputTokens,
+    },
+  });
 
   // ---- 2. Generate ---------------------------------------------------------
   await setStatus(buildId, "generating");
@@ -245,45 +241,21 @@ async function run(
   }
   requireTime("code generation");
 
-  // ---- 3. Provision an execution surface -----------------------------------
+  // ---- 3. Provision a CreateOS microVM -------------------------------------
   await setStatus(buildId, "testing");
-  let runner: Runner;
-  if (env.createos.apiKey) {
-    try {
-      runner = await SandboxRunner.create(buildId, { BUILD_ID: buildId, PORT: String(APP_PORT) }, (n) =>
-        void recordEvent(buildId, "command_started", "CreateOS capacity", n),
-      );
-      await recordEvent(
-        buildId,
-        "command_completed",
-        `CreateOS sandbox ready — ${env.createos.shape} · ${env.createos.rootfs}`,
-        `sandbox ${runner.id}`,
-        { sandboxId: runner.id, shape: env.createos.shape, rootfs: env.createos.rootfs },
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await recordEvent(
-        buildId,
-        "error",
-        "CreateOS sandbox unavailable — continuing in the local runner",
-        message,
-      );
-      runner = await LocalRunner.create(buildId);
-    }
-  } else {
-    runner = await LocalRunner.create(buildId);
-    await recordEvent(
-      buildId,
-      "command_completed",
-      "Local runner ready (simulated)",
-      "CREATEOS_SANDBOX_API_KEY is not set, so this build does not run in a CreateOS microVM",
-    );
-  }
+  const runner = await SandboxRunner.create(buildId, { BUILD_ID: buildId, PORT: String(APP_PORT) }, (note) =>
+    void recordEvent(buildId, "command_started", "CreateOS capacity", note),
+  );
 
-  await db
-    .update(builds)
-    .set({ sandboxId: runner.id, simulated: runner.simulated, updatedAt: new Date() })
-    .where(eq(builds.id, buildId));
+  await recordEvent(
+    buildId,
+    "command_completed",
+    `CreateOS sandbox ready — ${env.createos.shape} · ${env.createos.rootfs}`,
+    `sandbox ${runner.id}`,
+    { sandboxId: runner.id, shape: env.createos.shape, rootfs: env.createos.rootfs },
+  );
+
+  await db.update(builds).set({ sandboxId: runner.id, updatedAt: new Date() }).where(eq(builds.id, buildId));
 
   let outcome: BuildOutcome;
 
@@ -322,13 +294,7 @@ async function run(
     requireTime("deploy");
     const appUrl = await runner.serve(APP_PORT);
     await db.update(builds).set({ appUrl, updatedAt: new Date() }).where(eq(builds.id, buildId));
-    await recordEvent(
-      buildId,
-      "deploy_completed",
-      runner.simulated ? `Serving locally at ${appUrl} (simulated)` : `Live at ${appUrl}`,
-      null,
-      { appUrl, simulated: runner.simulated },
-    );
+    await recordEvent(buildId, "deploy_completed", `Live at ${appUrl}`, null, { appUrl });
 
     // ---- 6. Monetize: human rail ------------------------------------------
     await setStatus(buildId, "monetizing");
@@ -353,15 +319,16 @@ async function run(
     await recordEvent(
       buildId,
       "stripe_created",
-      product.simulated
-        ? `Stripe product skipped — $${args.priceUsd.toFixed(2)} ${spec.unit} (simulated)`
-        : `Stripe product and price created — $${args.priceUsd.toFixed(2)} per ${spec.unit}`,
-      product.note ?? `${product.productId} · ${product.priceId}`,
+      `Stripe product and price created — $${args.priceUsd.toFixed(2)} per ${spec.unit}`,
+      `${product.productId} · ${product.priceId}`,
       { ...product, priceUsd: args.priceUsd },
     );
 
     // ---- 7. Monetize: agent rail ------------------------------------------
-    await db.update(builds).set({ agentEndpointUrl: agentEndpoint, updatedAt: new Date() }).where(eq(builds.id, buildId));
+    await db
+      .update(builds)
+      .set({ agentEndpointUrl: agentEndpoint, updatedAt: new Date() })
+      .where(eq(builds.id, buildId));
     await recordEvent(
       buildId,
       "x402_listed",
@@ -372,7 +339,7 @@ async function run(
 
     // ---- 8. Book compute cost ---------------------------------------------
     const seconds = runner.elapsedSeconds();
-    const cost = runner.simulated ? 0 : computeCostUsd(env.createos.shape, seconds);
+    const cost = computeCostUsd(env.createos.shape, seconds);
     if (cost > 0) {
       await post({
         buildId,
@@ -381,7 +348,8 @@ async function run(
         direction: "outflow",
         amountUsd: cost,
         purpose: "sandbox_compute",
-        metadata: { seconds: Math.round(seconds), shape: env.createos.shape },
+        externalId: `compute:${buildId}`,
+        metadata: { seconds: Math.round(seconds), shape: env.createos.shape, sandboxId: runner.id },
       });
     }
 
@@ -398,20 +366,15 @@ async function run(
       { appUrl, agentEndpoint, buildSeconds: Math.round(seconds) },
     );
 
-    outcome = {
-      buildId,
-      status: "live",
-      appUrl,
-      checkoutUrl: appUrl,
-      agentEndpoint,
-      simulated: runner.simulated,
-      spec,
-    };
+    outcome = { buildId, status: "live", appUrl, agentEndpoint, spec };
   } finally {
-    // A published app must keep answering requests, so the sandbox is paused
-    // (wakes on the next request to its ingress URL) rather than destroyed.
+    // A published app has to keep answering requests, so the sandbox is paused
+    // rather than destroyed: it keeps its disk and wakes on the next request to
+    // its ingress URL.
     await runner.dispose({ keepAlive: true });
   }
 
   return outcome;
 }
+
+export { MissingCredentialsError };
