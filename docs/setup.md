@@ -153,15 +153,23 @@ To demonstrate a settled payment you need a **second** wallet holding Base Sepol
 The USDC contract the challenge advertises on Base Sepolia is
 `0x036CbD53842c5426634e7929541eC2318f3dCF7e`.
 
-### Going to mainnet
+### Going to mainnet (required for PayBox)
+
+PayBox only accepts x402 proposals on Base mainnet or Solana mainnet, and the public
+facilitator is **testnet only**, so mainnet needs both of these:
 
 ```env
 X402_NETWORK=eip155:8453
+CDP_API_KEY_ID=...        # free, https://portal.cdp.coinbase.com
+CDP_API_KEY_SECRET=...
 ```
 
-Mainnet settlement wants a CDP-credentialed facilitator — set `X402_FACILITATOR_URL` to
-the Coinbase facilitator and supply its credentials. Only do this if you intend real
-money to move.
+With CDP credentials present the platform uses the CDP facilitator automatically and
+`X402_FACILITATOR_URL` is ignored. Without them, the x402 routes answer `503` with a
+message naming the facilitator, the network, what it *does* support, and the variable to
+set — they do not hang, and they do not take the server down.
+
+Only do this if you intend real money to move.
 
 **Verify:**
 
@@ -233,4 +241,5 @@ home page and confirm the timeline reaches **live**.
 | `must specify events to forward` | CLI 1.50+ needs `--events`; see step 4 above. |
 | `npm install -g @stripe/cli` fails `EACCES` | No write access to the npm prefix. Use Homebrew instead. |
 | Webhook returns `400` on a triggered event | `STRIPE_WEBHOOK_SECRET` does not match the running listener. Re-read it with `--print-secret`. |
-| x402 route answers `503` | `X402_PAY_TO` is unset. |
+| x402 route answers `503` | Read the body. Either `X402_PAY_TO` is unset, or the facilitator cannot settle on `X402_NETWORK` — mainnet needs `CDP_API_KEY_ID`/`CDP_API_KEY_SECRET`. |
+| `stripe: You have not configured API keys yet` | `$STRIPE_SECRET_KEY` is not in your shell. Run `set -a && source .env.local && set +a` first. |

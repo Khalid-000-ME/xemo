@@ -87,6 +87,25 @@ That means a little **real USDC on Base**, in the wallet credential you demo wit
 $0.05 a build, a full rehearsal plus the recording costs well under a dollar. The USDC
 contract the proposal names is `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913`.
 
+**And mainnet needs a credentialed facilitator.** The public `x402.org/facilitator` is
+testnet only — it settles Base Sepolia and will refuse `eip155:8453`. Get free API
+credentials from <https://portal.cdp.coinbase.com> (CDP offers fee-free USDC settlement
+on Base) and set:
+
+```env
+CDP_API_KEY_ID=...
+CDP_API_KEY_SECRET=...
+```
+
+With those present the platform selects the CDP facilitator automatically; without them
+the x402 routes answer `503` naming exactly this. Verify before recording:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$BASE/api/x402/commission" \
+  -H 'content-type: application/json' -d '{"prompt":"check","wait":false}'
+# 402 = ready to be paid.  503 = read the body; it names the variable to set.
+```
+
 > The CreateOS × Stripe submission is unaffected and can stay on Sepolia. These are two
 > different recordings; set the variable for whichever you are filming.
 
