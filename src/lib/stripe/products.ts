@@ -1,42 +1,32 @@
-import { env } from "@/lib/env";
-import { stripe, stripeConfigured } from "./client";
+import { env, requireStripe } from "@/lib/env";
+import { stripe } from "./client";
 
 export type ProvisionResult = {
-  productId: string | null;
-  priceId: string | null;
-  simulated: boolean;
-  note?: string;
+  productId: string;
+  priceId: string;
 };
 
 /**
  * Create the Stripe product and price that back one generated app.
  *
- * `idempotencyKey` is the build id, so a retried build reuses the same Stripe
- * objects instead of littering the account with duplicates.
+ * Idempotency keys are derived from the build id, so a retried build reuses the
+ * same Stripe objects instead of littering the account with duplicates.
  */
 export async function provisionProduct(args: {
   buildId: string;
   productName: string;
   tagline: string;
   priceUsd: number;
-  appUrl?: string | null;
+  appUrl: string;
 }): Promise<ProvisionResult> {
-  if (!stripeConfigured()) {
-    return {
-      productId: null,
-      priceId: null,
-      simulated: true,
-      note: "STRIPE_SECRET_KEY not set — product and price were not created",
-    };
-  }
-
+  requireStripe();
   const sdk = stripe();
 
   const product = await sdk.products.create(
     {
       name: args.productName,
       description: args.tagline.slice(0, 350),
-      ...(args.appUrl ? { url: args.appUrl } : {}),
+      url: args.appUrl,
       metadata: {
         agentfoundry_build: args.buildId,
         ...(env.stripe.projectId ? { stripe_project: env.stripe.projectId } : {}),
@@ -55,7 +45,7 @@ export async function provisionProduct(args: {
     { idempotencyKey: `af-price-${args.buildId}` },
   );
 
-  return { productId: product.id, priceId: price.id, simulated: false };
+  return { productId: product.id, priceId: price.id };
 }
 
 export async function createCheckoutSession(args: {
@@ -66,14 +56,10 @@ export async function createCheckoutSession(args: {
   productName: string;
   successUrl: string;
   cancelUrl: string;
-}): Promise<{ url: string; sessionId: string | null; simulated: boolean }> {
-  if (!stripeConfigured()) {
-    // A labelled simulation: the order still completes so the rest of the
-    // funnel is demoable, but nothing claims a payment was taken.
-    return { url: `${args.successUrl}&simulated=1`, sessionId: null, simulated: true };
-  }
-
+}): Promise<{ url: string; sessionId: string }> {
+  requireStripe();
   const sdk = stripe();
+
   const session = await sdk.checkout.sessions.create(
     {
       mode: "payment",
@@ -101,5 +87,5 @@ export async function createCheckoutSession(args: {
   );
 
   if (!session.url) throw new Error("Stripe returned a session without a checkout URL");
-  return { url: session.url, sessionId: session.id, simulated: false };
+  return { url: session.url, sessionId: session.id };
 }
