@@ -2,7 +2,7 @@
   "name": "agentfoundry",
   "version": "1.0.0",
   "private": true,
-  "description": "AgentFoundry — an agent that builds, deploys and dual-rail monetizes micro-SaaS. Submitted to PayBox as AppFactory.",
+  "description": "AgentFoundry \u2014 an agent that builds, deploys and dual-rail monetizes micro-SaaS. Submitted to PayBox as AppFactory.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,7 +13,8 @@
     "smoke": "node scripts/smoke-test.mjs",
     "x402:probe": "node scripts/x402-probe.mjs",
     "template:check": "node scripts/template-check.mjs",
-    "createos:check": "node scripts/createos-check.mjs"
+    "createos:check": "node scripts/createos-check.mjs",
+    "set-url": "node scripts/set-app-url.mjs"
   },
   "dependencies": {
     "@ai-sdk/groq": "4.0.63",
