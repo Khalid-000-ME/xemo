@@ -62,15 +62,25 @@ try {
   const probe = await get("/api/capabilities");
   ok("GET /api/capabilities returns 200", probe.res.status === 200, `got ${probe.res.status}`);
   caps = probe.body;
-  ok("capability report lists every rail", Array.isArray(caps?.capabilities) && caps.capabilities.length === 5);
+  ok("readiness report lists every rail", Array.isArray(caps?.rails) && caps.rails.length === 5);
+  ok("readiness states whether a build can run", typeof caps?.buildReady === "boolean");
 } catch (err) {
   console.error(`\n  cannot reach ${BASE}: ${err.message}\n  Is the server running?\n`);
   process.exit(1);
 }
 
-const live = Object.fromEntries((caps.capabilities ?? []).map((c) => [c.id, c.live]));
-for (const cap of caps.capabilities ?? []) {
-  console.log(`       ${cap.live ? "\u001b[32m●\u001b[0m" : "\u001b[90m○\u001b[0m"} ${cap.label}: ${cap.detail}`);
+const live = Object.fromEntries((caps.rails ?? []).map((r) => [r.id, r.ready]));
+for (const rail of caps.rails ?? []) {
+  const mark = rail.ready
+    ? "\u001b[32m\u25cf\u001b[0m"
+    : rail.blocking
+      ? "\u001b[31m\u25cb\u001b[0m"
+      : "\u001b[90m\u25cb\u001b[0m";
+  const suffix = rail.ready ? rail.detail : `MISSING ${rail.missing.join(", ")}`;
+  console.log(`       ${mark} ${rail.label}: ${suffix}`);
+}
+if (!caps.buildReady) {
+  console.log(`       \u001b[31mbuilds are blocked\u001b[0m \u2014 set: ${caps.missing.join(", ")}`);
 }
 
 const home = await get("/");
@@ -158,10 +168,32 @@ ok("unknown order returns 404", missingOrder.res.status === 404, `got ${missingO
 section("Stripe webhook");
 const unsigned = await post("/api/stripe/webhook", { type: "checkout.session.completed" });
 if (!live.stripe) {
-  ok("webhook declines cleanly when unconfigured", unsigned.res.status === 503, `got ${unsigned.res.status}`);
+  ok("webhook refuses to trust an unverifiable payload", unsigned.res.status === 503, `got ${unsigned.res.status}`);
 } else {
   ok("webhook refuses an unsigned payload", unsigned.res.status === 400, `got ${unsigned.res.status}`);
   ok("refusal names the signature problem", String(unsigned.body?.error?.code ?? "").includes("SIGNATURE"), unsigned.body?.error?.code);
+}
+
+// ── No simulated paths ───────────────────────────────────────────────────────
+section("No simulated paths");
+const startAttempt = await post("/api/agent/create-app", {
+  prompt: "Build a paid cold email auditor that charges $4 per audit",
+  priceUsd: 4,
+});
+
+if (caps.buildReady) {
+  ok("a build starts when every rail is ready", startAttempt.res.status === 202, `got ${startAttempt.res.status}`);
+  ok("the build gets an id", typeof startAttempt.body?.buildId === "string");
+} else {
+  ok(
+    "a build refuses rather than simulating",
+    startAttempt.res.status === 503 && startAttempt.body?.error?.code === "MISSING_CREDENTIALS",
+    `got ${startAttempt.res.status} ${startAttempt.body?.error?.code}`,
+  );
+  ok(
+    "the refusal names the missing variables",
+    Array.isArray(startAttempt.body?.error?.missing) && startAttempt.body.error.missing.length > 0,
+  );
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────
