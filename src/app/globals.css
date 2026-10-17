@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --fg: #16161a;
+  --fg-muted: #5c5c68;
+  --fg-faint: #8a8a96;
+  --line: #e6e6eb;
+  --line-strong: #d2d2da;
+  --brand: #4f46e5;
+  --brand-soft: #eef2ff;
+  --pos: #047857;
+  --pos-soft: #ecfdf5;
+  --neg: #b4232a;
+  --neg-soft: #fef2f2;
+  --warn: #b45309;
+  --shadow: 0 1px 2px rgba(16, 16, 26, 0.06), 0 1px 1px rgba(16, 16, 26, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d0d10;
+    --bg-subtle: #15151a;
+    --fg: #f2f2f5;
+    --fg-muted: #9b9ba8;
+    --fg-faint: #6e6e7c;
+    --line: #26262f;
+    --line-strong: #35353f;
+    --brand: #8b85f5;
+    --brand-soft: #1d1b36;
+    --pos: #34d399;
+    --pos-soft: #072b22;
+    --neg: #ff8d94;
+    --neg-soft: #2d1416;
+    --warn: #fbbf24;
+    --shadow: none;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d0d10;
+  --bg-subtle: #15151a;
+  --fg: #f2f2f5;
+  --fg-muted: #9b9ba8;
+  --fg-faint: #6e6e7c;
+  --line: #26262f;
+  --line-strong: #35353f;
+  --brand: #8b85f5;
+  --brand-soft: #1d1b36;
+  --pos: #34d399;
+  --pos-soft: #072b22;
+  --neg: #ff8d94;
+  --neg-soft: #2d1416;
+  --warn: #fbbf24;
+  --shadow: none;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  border-color: var(--line);
+}
+
+::selection {
+  background: var(--brand-soft);
+}
+
+@keyframes af-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes af-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.af-spin {
+  animation: af-spin 0.7s linear infinite;
+}
+
+.af-pulse {
+  animation: af-pulse 1.6s ease-in-out infinite;
+}
+
+/* Numeric columns must line up for figures to be comparable at a glance. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
