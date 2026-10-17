@@ -129,6 +129,11 @@ export function appUrlIsLocal(): boolean {
   }
 }
 
+/** A generated app calls the platform URL back, so that platform must read the database the build was written to. */
+function databaseIsLocalFile(): boolean {
+  return !/^(libsql|https?|wss?):/.test(env.databaseUrl);
+}
+
 export type RailStatus = {
   id: string;
   label: string;
@@ -194,7 +199,9 @@ export function readiness(): RailStatus[] {
       missing: appUrlIsLocal() ? ["NEXT_PUBLIC_APP_URL"] : [],
       detail: appUrlIsLocal()
         ? `${env.appUrl} is loopback — builds will succeed, but a deployed app cannot call back for checkout or fulfilment`
-        : env.appUrl,
+        : databaseIsLocalFile()
+          ? `${env.appUrl} — generated apps call this URL, so it must be served by this database; DATABASE_URL is a local file`
+          : env.appUrl,
     },
   ];
   return rows;
