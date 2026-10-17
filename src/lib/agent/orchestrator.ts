@@ -20,7 +20,10 @@ import type { ProductSpec } from "./spec";
  * though the shell lives inside a disposable microVM.
  */
 const BUILD_STEPS = [
-  { id: "install", label: "Install dependencies", script: "npm install --no-audit --no-fund 2>&1 | tail -20" },
+  // No pipes here on purpose: a shell pipeline reports the *last* command's
+  // exit status, so `npm install | tail` returns 0 even when the install fails.
+  // The runner truncates output for display instead.
+  { id: "install", label: "Install dependencies", script: "npm install --no-audit --no-fund 2>&1" },
   { id: "typecheck", label: "Syntax-check every generated file", script: "npm run typecheck" },
   { id: "test", label: "Run the smoke test against a real server boot", script: "npm test" },
 ] as const;
