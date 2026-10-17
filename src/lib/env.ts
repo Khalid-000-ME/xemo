@@ -58,6 +58,12 @@ export const env = {
     commissionPriceUsd: num("X402_COMMISSION_PRICE_USD", 0.5),
     generatedAppPriceUsd: num("X402_GENERATED_APP_PRICE_USD", 0.02),
     serviceName: str("X402_SERVICE_NAME") ?? "AppFactory",
+    /**
+     * Coinbase CDP credentials. Required for Base mainnet: the public
+     * x402.org facilitator is testnet only.
+     */
+    cdpApiKeyId: str("CDP_API_KEY_ID"),
+    cdpApiKeySecret: str("CDP_API_KEY_SECRET"),
     iconUrl: str("X402_ICON_URL"),
   },
 
