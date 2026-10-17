@@ -52,7 +52,7 @@ const discovery = declareDiscoveryExtension({
     additionalProperties: false,
   },
   output: {
-    example: { buildId: "af_abc123", productName: "ResumeForge", result: { overallScore: 78 } },
+    example: { buildId: "af_abc123", productName: "ResolveRight", result: { overallScore: 78 } },
     schema: {
       type: "object",
       required: ["buildId", "result"],
@@ -138,7 +138,7 @@ const paidRoute = x402Configured()
       {
         "/api/x402/apps/[buildId]": {
           accepts: accepts(PRICE),
-          description: "Call a micro-SaaS built by Xemo, priced per request for agents.",
+          description: "Call an onchain product built by Xemo (stablecoin, tokenization or prediction-market tooling), priced per request for agents.",
           // No `resource` override here: the path carries a build id, so a fixed
           // string would advertise the wrong app. The catalog key comes from the
           // route pattern instead. Deploy behind a host that forwards its own

@@ -58,7 +58,7 @@ export async function POST(req: Request) {
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "xemo", title: "Xemo", version: "1.0.0" },
         instructions:
-          "Xemo builds, deploys and monetizes a micro-SaaS from one prompt. Call `quote_app_build` " +
+          "Xemo is a gateway to the institutional blockchain ecosystem: it builds, deploys and monetizes onchain products (stablecoins, tokenization, prediction markets) from one prompt. Call `quote_app_build` " +
           "first to get x402 terms and the price, tell the user that price, then use PayBox `pay_x402` to " +
           "pay the returned resource and POST to it with the X-PAYMENT header. Use `get_build` to follow a " +
           "build and `list_apps` to see what has shipped.",

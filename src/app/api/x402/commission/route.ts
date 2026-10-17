@@ -28,8 +28,8 @@ const PRICE = env.x402.commissionPriceUsd;
 const discovery = declareDiscoveryExtension({
   bodyType: "json",
   input: {
-    prompt: "Build a paid AI resume reviewer that charges $5 per review",
-    productName: "ResumeForge",
+    prompt: "Build a paid prediction market resolution auditor that charges $5 per audit",
+    productName: "ResolveRight",
     priceUsd: 5,
   },
   inputSchema: {
@@ -62,7 +62,7 @@ const discovery = declareDiscoveryExtension({
     example: {
       buildId: "af_abc123",
       status: "live",
-      productName: "ResumeForge",
+      productName: "ResolveRight",
       appUrl: "https://sandbox-abc.sb.createos.sh",
       agentEndpoint: "https://xemo.example/api/x402/apps/af_abc123",
       humanPriceUsd: 5,
@@ -224,10 +224,10 @@ const paidRoute = x402Configured()
           // one, which would advertise a resource URL the payer cannot reach —
           // and which would not match the URL in an agent's payment proposal.
           resource: `${env.appUrl}/api/x402/commission`,
-          description: "Commission a deployed, Stripe-and-x402 monetized micro-SaaS from one prompt.",
+          description: "Commission a deployed, Stripe-and-x402 monetized onchain business (stablecoin, tokenization, prediction-market tooling) from one prompt.",
           mimeType: "application/json",
           serviceName: env.x402.serviceName,
-          tags: ["merchant-tools", "deploy", "codegen", "saas"],
+          tags: ["merchant-tools", "deploy", "codegen", "stablecoins", "tokenization", "prediction-markets"],
           ...(env.x402.iconUrl ? { iconUrl: env.x402.iconUrl } : {}),
           extensions: discovery,
         },

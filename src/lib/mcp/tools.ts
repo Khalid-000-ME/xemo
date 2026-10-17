@@ -29,7 +29,7 @@ export function tools(): McpTool[] {
       name: "quote_app_build",
       title: "Quote an app build",
       description:
-        "Return the x402 payment terms for commissioning a deployed, monetized micro-SaaS. Read-only: " +
+        "Return the x402 payment terms for commissioning a deployed, monetized onchain product (stablecoin, tokenization or prediction-market tooling). Read-only: " +
         "nothing is built and nothing is spent. Show the user `priceUsd` before paying.",
       inputSchema: {
         type: "object",
@@ -88,7 +88,7 @@ export function tools(): McpTool[] {
     {
       name: "list_apps",
       title: "List deployed apps",
-      description: "List the micro-SaaS apps Xemo has deployed, newest first. Read-only.",
+      description: "List the onchain apps Xemo has deployed, newest first. Read-only.",
       inputSchema: {
         type: "object",
         properties: { limit: { type: "number", minimum: 1, maximum: 50, description: "How many to return." } },
