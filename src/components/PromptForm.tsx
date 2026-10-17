@@ -5,25 +5,25 @@ import { useState } from "react";
 
 const EXAMPLES = [
   {
-    label: "AI resume reviewer",
+    label: "Stablecoin reserve checker",
     prompt:
-      "Build a paid AI resume reviewer. Charge $5 per review. Score the resume out of 100, list strengths and specific improvements, and rewrite the professional summary.",
-    name: "ResumeForge",
-    price: 5,
-  },
-  {
-    label: "Cold email auditor",
-    prompt:
-      "Build a paid cold email auditor for founders. Charge $4 per audit. Score the email's likelihood of a reply, flag spam triggers, and rewrite the opening line three different ways.",
-    name: "ReplyRate",
-    price: 4,
-  },
-  {
-    label: "Contract clause checker",
-    prompt:
-      "Build a paid contract clause checker for freelancers. Charge $9 per check. Flag clauses that are unusually risky for the contractor, explain why in plain English, and suggest safer wording.",
-    name: "ClauseGuard",
+      "Build a paid stablecoin reserve risk checker for institutional treasuries. Charge $9 per check. Take a pasted reserve attestation or issuer disclosure, score transparency out of 100, flag custody, concentration and redemption risks, and summarise the verdict in plain English.",
+    name: "ReserveLens",
     price: 9,
+  },
+  {
+    label: "Tokenization readiness",
+    prompt:
+      "Build a paid tokenization readiness scorer for real-world assets. Charge $12 per assessment. Take a pasted asset description (real estate, private credit, treasuries), score legal, custody and compliance readiness out of 100, list the gaps, and propose a token structure.",
+    name: "TokenReady",
+    price: 12,
+  },
+  {
+    label: "Prediction market auditor",
+    prompt:
+      "Build a paid prediction market resolution auditor. Charge $5 per audit. Take a pasted market question with its resolution criteria, flag ambiguity, edge cases and oracle risk, and rewrite the criteria so the market resolves unambiguously.",
+    name: "ResolveRight",
+    price: 5,
   },
 ];
 
