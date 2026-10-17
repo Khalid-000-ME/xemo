@@ -42,7 +42,7 @@ export default async function Dashboard() {
   const humanShare = (econ.humanRevenueUsd / revenueTotal) * 100;
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-6xl space-y-8 px-6 pt-4">
       <header>
         <h1 className="text-[30px] font-semibold tracking-[-0.022em]">Economics</h1>
         <p className="mt-2 max-w-2xl text-[15px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>

@@ -35,7 +35,7 @@ export default async function BuildPage({ params }: { params: Promise<{ buildId:
       : null;
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-6xl space-y-8 px-6 pt-4">
       <header className="space-y-3">
         <Link href="/" className="text-[13px] underline decoration-dotted underline-offset-2" style={{ color: "var(--fg-muted)" }}>
           ← New build
