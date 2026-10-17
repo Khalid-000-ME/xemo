@@ -63,7 +63,13 @@ export async function POST(req: Request) {
 
 async function onCompleted(event: Stripe.Event): Promise<void> {
   const session = event.data.object as Stripe.Checkout.Session;
-  const orderId = session.metadata?.agentfoundry_order ?? session.client_reference_id ?? undefined;
+  // `agentfoundry_order` is the pre-rename key: sessions created before it
+  // changed are still in flight and must still be fulfilled.
+  const orderId =
+    session.metadata?.xemo_order ??
+    session.metadata?.agentfoundry_order ??
+    session.client_reference_id ??
+    undefined;
   if (!orderId) return;
 
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
@@ -94,7 +100,7 @@ async function onCompleted(event: Stripe.Event): Promise<void> {
 
 async function onAbandoned(event: Stripe.Event): Promise<void> {
   const object = event.data.object as Stripe.Checkout.Session | Stripe.PaymentIntent;
-  const orderId = object.metadata?.agentfoundry_order;
+  const orderId = object.metadata?.xemo_order ?? object.metadata?.agentfoundry_order;
   if (!orderId) return;
 
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);

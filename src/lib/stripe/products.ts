@@ -28,11 +28,11 @@ export async function provisionProduct(args: {
       description: args.tagline.slice(0, 350),
       url: args.appUrl,
       metadata: {
-        agentfoundry_build: args.buildId,
+        xemo_build: args.buildId,
         ...(env.stripe.projectId ? { stripe_project: env.stripe.projectId } : {}),
       },
     },
-    { idempotencyKey: `af-product-${args.buildId}` },
+    { idempotencyKey: `xm-product-${args.buildId}` },
   );
 
   const price = await sdk.prices.create(
@@ -40,9 +40,9 @@ export async function provisionProduct(args: {
       product: product.id,
       currency: "usd",
       unit_amount: Math.round(args.priceUsd * 100),
-      metadata: { agentfoundry_build: args.buildId },
+      metadata: { xemo_build: args.buildId },
     },
-    { idempotencyKey: `af-price-${args.buildId}` },
+    { idempotencyKey: `xm-price-${args.buildId}` },
   );
 
   return { productId: product.id, priceId: price.id };
@@ -78,12 +78,12 @@ export async function createCheckoutSession(args: {
       success_url: args.successUrl,
       cancel_url: args.cancelUrl,
       client_reference_id: args.orderId,
-      metadata: { agentfoundry_build: args.buildId, agentfoundry_order: args.orderId },
+      metadata: { xemo_build: args.buildId, xemo_order: args.orderId },
       payment_intent_data: {
-        metadata: { agentfoundry_build: args.buildId, agentfoundry_order: args.orderId },
+        metadata: { xemo_build: args.buildId, xemo_order: args.orderId },
       },
     },
-    { idempotencyKey: `af-checkout-${args.orderId}` },
+    { idempotencyKey: `xm-checkout-${args.orderId}` },
   );
 
   if (!session.url) throw new Error("Stripe returned a session without a checkout URL");
