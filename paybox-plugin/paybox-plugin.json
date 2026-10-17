@@ -4,6 +4,7 @@
     "prompt": "Build a paid cold email auditor for founders. Charge $4 per audit. Score reply likelihood, flag spam triggers, and rewrite the opening line three ways.",
     "productName": "ReplyRate",
     "priceUsd": 4,
-    "maxAmountUsd": "0.50"
+    "maxAmountUsd": "0.50",
+    "apiBase": "https://won-nirvana-patrick-planned.trycloudflare.com"
   }
 }

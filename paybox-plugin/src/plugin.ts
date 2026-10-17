@@ -28,10 +28,51 @@ import { atomicAmount, proposeX402, x402OutputSchema } from "./paybox.js";
 const PROTOCOL_VERSION = "2026-07-28";
 
 /**
- * Where AgentFoundry runs. Configured as a plugin variable in the portal, and
- * the same hostname must be added under network access.
+ * Where AgentFoundry runs. Set as a plugin variable in the portal, and the same
+ * hostname must also be added under network access.
+ *
+ * There is deliberately no default. A placeholder would turn "you forgot to set
+ * the variable" into an opaque `fetch failed` against a domain that does not
+ * exist, which is the hardest kind of misconfiguration to diagnose from a test
+ * result.
  */
-const API_BASE = (process.env.APPFACTORY_API_URL ?? "https://appfactory.example").replace(/\/+$/, "");
+const ENV_API_BASE = process.env.APPFACTORY_API_URL?.trim();
+
+/**
+ * Resolve the origin for one call: the explicit argument wins, then the plugin
+ * variable. Taking it as an argument mirrors the starter's own x402 example and
+ * means a tool can be exercised without any portal configuration.
+ */
+function resolveApiBase(override?: string): { base: string } | { problem: string } {
+  const raw = (override ?? ENV_API_BASE ?? "").trim().replace(/\/+$/, "");
+
+  if (!raw) {
+    return {
+      problem:
+        "No AppFactory origin. Either pass `apiBase`, or set APPFACTORY_API_URL in the " +
+        "PayBox portal under Test & configure -> Variables, and add that same hostname " +
+        "under Network access.",
+    };
+  }
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return { problem: `AppFactory origin is not a valid URL: "${raw}".` };
+  }
+  if (url.protocol !== "https:") {
+    return { problem: `AppFactory origin must be https, got "${raw}".` };
+  }
+  return { base: raw };
+}
+
+const apiBaseInput = z
+  .string()
+  .url()
+  .max(2048)
+  .optional()
+  .describe("AppFactory origin, e.g. https://your-host.example. Defaults to the APPFACTORY_API_URL variable.");
 
 /** USDC has six decimals on both Base and Solana. */
 const USDC_DECIMALS = 6;
@@ -46,12 +87,35 @@ const buildIdSchema = z
   .regex(/^[A-Za-z0-9_-]+$/, "A build id contains only letters, digits, underscore and hyphen.");
 
 /** Bounded fetch: the hosted runtime gives an operation ten seconds in total. */
-async function readJson(path: string, timeoutMs = 7000): Promise<unknown> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: "GET",
-    headers: { accept: "application/json" },
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+async function readJson(base: string, path: string, timeoutMs = 7000): Promise<unknown> {
+  const target = `${base}${path}`;
+
+  let response: Response;
+  try {
+    response = await fetch(target, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (error) {
+    // `fetch failed` on its own is unactionable. Name the URL that was tried
+    // and the two settings that produce this, since the sandbox blocks any
+    // host missing from the allowlist exactly as if it were offline.
+    const cause = error instanceof Error ? error.message : String(error);
+    const host = (() => {
+      try {
+        return new URL(target).hostname;
+      } catch {
+        return base;
+      }
+    })();
+    throw new Error(
+      `Could not reach AppFactory at ${target} (${cause}). Check, in the PayBox portal: ` +
+        `(1) Network access lists the exact hostname "${host}" — no scheme, no path, no wildcard; ` +
+        `(2) Variables sets APPFACTORY_API_URL to the same origin; ` +
+        `(3) that host is actually serving right now.`,
+    );
+  }
 
   const body = await response.text();
   if (body.length > 256 * 1024) throw new Error("AppFactory returned an unexpectedly large response.");
@@ -145,6 +209,7 @@ function createServer() {
             .optional()
             .describe("Most the user is willing to pay for this build, in USDC. Defaults to 0.50."),
           chain: z.enum(CHAINS).optional().describe("Payment chain. Defaults to eip155:8453 (Base)."),
+          apiBase: apiBaseInput,
         })
         .strict(),
       outputSchema: x402OutputSchema,
@@ -155,11 +220,13 @@ function createServer() {
         openWorldHint: true,
       },
     },
-    async ({ prompt, productName, priceUsd, maxAmountUsd, chain }) => {
+    async ({ prompt, productName, priceUsd, maxAmountUsd, chain, apiBase }) => {
+      const resolved = resolveApiBase(apiBase);
+      if ("problem" in resolved) return failure(resolved.problem);
       try {
         return proposeX402({
           chain: chain ?? "eip155:8453",
-          url: `${API_BASE}/api/x402/commission`,
+          url: `${resolved.base}/api/x402/commission`,
           method: "POST",
           maxAmount: atomicAmount(maxAmountUsd ?? "0.50", USDC_DECIMALS),
           body: {
@@ -186,7 +253,12 @@ function createServer() {
         "Look up a build commissioned through AppFactory: its status, its public URL, the x402 endpoint " +
         "agents can buy from, and its revenue and cost. Read-only and free. Poll this after paying " +
         "rather than commissioning again — a build usually reaches `live` within a minute.",
-      inputSchema: z.object({ buildId: buildIdSchema.describe("The build id the paid request returned.") }).strict(),
+      inputSchema: z
+        .object({
+          buildId: buildIdSchema.describe("The build id the paid request returned."),
+          apiBase: apiBaseInput,
+        })
+        .strict(),
       outputSchema: buildSchema,
       annotations: {
         readOnlyHint: true,
@@ -195,9 +267,14 @@ function createServer() {
         openWorldHint: true,
       },
     },
-    async ({ buildId }) => {
+    async ({ buildId, apiBase }) => {
+      const resolved = resolveApiBase(apiBase);
+      if ("problem" in resolved) return failure(resolved.problem);
       try {
-        const raw = (await readJson(`/api/builds/${encodeURIComponent(buildId)}`)) as Record<string, unknown>;
+        const raw = (await readJson(
+          resolved.base,
+          `/api/builds/${encodeURIComponent(buildId)}`,
+        )) as Record<string, unknown>;
         const build = buildSchema.parse({
           buildId: raw.buildId,
           status: raw.status,
@@ -233,7 +310,10 @@ function createServer() {
         "List micro-SaaS apps AppFactory has deployed, newest first, with their public URLs and both " +
         "prices. Read-only and free.",
       inputSchema: z
-        .object({ limit: z.number().int().min(1).max(25).optional().describe("How many to return. Defaults to 10.") })
+        .object({
+          limit: z.number().int().min(1).max(25).optional().describe("How many to return. Defaults to 10."),
+          apiBase: apiBaseInput,
+        })
         .strict(),
       outputSchema: z.object({ count: z.number(), apps: z.array(buildSchema) }).strict(),
       annotations: {
@@ -243,9 +323,11 @@ function createServer() {
         openWorldHint: true,
       },
     },
-    async ({ limit }) => {
+    async ({ limit, apiBase }) => {
+      const resolved = resolveApiBase(apiBase);
+      if ("problem" in resolved) return failure(resolved.problem);
       try {
-        const raw = (await readJson(`/api/builds?limit=${limit ?? 10}`)) as { apps?: unknown[] };
+        const raw = (await readJson(resolved.base, `/api/builds?limit=${limit ?? 10}`)) as { apps?: unknown[] };
         const apps = (raw.apps ?? []).map((a) => buildSchema.parse(a));
         const summary =
           apps.length === 0
