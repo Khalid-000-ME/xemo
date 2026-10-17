@@ -36,18 +36,18 @@ export default async function Home() {
   ]);
 
   return (
-    <div>
+    <div className="landing">
       <section className="px-3">
         <div className="relative isolate flex h-[calc(100svh-96px)] min-h-[560px] max-h-[900px] items-center justify-center overflow-hidden rounded-[32px] px-6 text-center">
           <Image src="/hero.jpg" alt="" fill priority sizes="100vw" className="-z-10 object-cover" />
           <div className="mx-auto max-w-4xl">
-            <h1 className="font-serif text-[48px] leading-[1.02] tracking-[-0.02em] text-[#0c0c0e] sm:text-[72px] lg:text-[88px]">
+            <h1 className="hero-in font-serif text-[48px] leading-[1.02] tracking-[-0.02em] text-[#0c0c0e] sm:text-[72px] lg:text-[88px]">
               One prompt in. A business that sells to humans <em>and</em> to agents out.
             </h1>
-            <p className="mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-[#26262c] sm:text-[18px]">
+            <p className="hero-in mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-[#26262c] sm:text-[18px]">
               Xemo plans, builds, deploys and monetizes a micro-SaaS, with Stripe for people and x402 for machines.
             </p>
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <div className="hero-in mt-9 flex flex-wrap items-center justify-center gap-3">
               <a href="#build" className="rounded-full bg-[#0c0c0e] px-6 py-3 text-[15px] font-medium text-white transition-opacity hover:opacity-85">
                 Start building
               </a>
@@ -61,25 +61,25 @@ export default async function Home() {
 
       <div className="mx-auto max-w-6xl space-y-28 px-6 pt-28">
         <section id="build" className={`scroll-mt-8 ${SPLIT}`}>
-          <div>
+          <div className="reveal">
             <h2 className={H2}>Commission a business</h2>
             <p className="mt-5 max-w-sm text-[16px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
               Describe the product and the price. The agent does the rest and shows you every step as it happens.
             </p>
           </div>
-          <Card as="section">
+          <Card as="section" className="reveal">
             <PromptForm />
           </Card>
         </section>
 
         <section>
-          <h2 className={H2}>What it runs on</h2>
-          <p className="mt-4 text-[16px]" style={{ color: "var(--fg-muted)" }}>
+          <h2 className={`reveal ${H2}`}>What it runs on</h2>
+          <p className="reveal mt-4 text-[16px]" style={{ color: "var(--fg-muted)" }}>
             Live readiness of every rail this deployment depends on.
           </p>
           <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {rails.map((rail) => (
-              <li key={rail.id} className="rounded-[28px] p-6" style={{ background: "var(--bg-subtle)" }}>
+              <li key={rail.id} className="reveal rounded-[28px] p-6" style={{ background: "var(--bg-subtle)" }}>
                 <div className="flex items-center gap-2.5 text-[17px]">
                   <span
                     aria-hidden
@@ -100,7 +100,7 @@ export default async function Home() {
         </section>
 
         <section className={SPLIT}>
-          <div>
+          <div className="reveal">
             <h2 className={H2}>How a build runs</h2>
             <p className="mt-5 max-w-sm text-[16px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
               Five steps, each recorded with its real duration and cost.
@@ -108,7 +108,7 @@ export default async function Home() {
           </div>
           <ol>
             {STEPS.map(([title, note], i) => (
-              <li key={title} className="grid grid-cols-[2.5rem_1fr] items-baseline gap-x-4 gap-y-1 border-b py-6 first:pt-0 sm:grid-cols-[2.5rem_14rem_1fr]">
+              <li key={title} className="reveal grid grid-cols-[2.5rem_1fr] items-baseline gap-x-4 gap-y-1 border-b py-6 first:pt-0 sm:grid-cols-[2.5rem_14rem_1fr]">
                 <span className="font-mono text-[13px]" style={{ color: "var(--fg-faint)" }}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
@@ -122,14 +122,14 @@ export default async function Home() {
         </section>
 
         <section className={SPLIT}>
-          <div>
+          <div className="reveal">
             <h2 className={H2}>Buy a build as an agent</h2>
             <p className="mt-5 max-w-sm text-[16px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
               Xemo is itself sold over x402 at <strong style={{ color: "var(--fg)" }}>${env.x402.commissionPriceUsd.toFixed(2)}</strong> per
               build, on <Mono>{env.x402.network}</Mono>. A PayBox-connected agent discovers it, pays, and gets a deployed app back in one call.
             </p>
           </div>
-          <Card>
+          <Card className="reveal">
             <pre className="overflow-x-auto font-mono text-[12.5px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
 {`POST ${env.appUrl}/api/x402/commission
 {"prompt": "Build a paid AI resume reviewer", "priceUsd": 5}
@@ -143,14 +143,14 @@ export default async function Home() {
         {recent.length > 0 ? (
           <section>
             <div className="mb-8 flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className={H2}>Recent builds</h2>
+              <h2 className={`reveal ${H2}`}>Recent builds</h2>
               <Link href="/dashboard" className="text-[14px] underline decoration-dotted underline-offset-4" style={{ color: "var(--fg-muted)" }}>
                 See the economics →
               </Link>
             </div>
             <ul>
               {recent.map((build, i) => (
-                <li key={build.id}>
+                <li key={build.id} className="reveal">
                   <Link
                     href={`/build/${build.id}`}
                     className="grid grid-cols-[2.5rem_1fr_auto] items-center gap-x-4 border-b py-5 transition-colors hover:bg-[var(--bg-subtle)] sm:grid-cols-[2.5rem_1fr_auto_12rem]"
