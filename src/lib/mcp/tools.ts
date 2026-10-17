@@ -80,7 +80,6 @@ export function tools(): McpTool[] {
           agentEndpoint: build.agentEndpointUrl,
           humanPriceUsd: build.humanPriceUsd,
           agentPriceUsd: build.agentPriceUsd,
-          simulated: build.simulated,
           timelineUrl: `${env.appUrl}/build/${build.id}`,
           economics: await economics(build.id),
         };
