@@ -29,5 +29,4 @@ AgentFoundry_PRD.md
 .env
 .env.*
 !.env.example
-.projects/state.local.json
 /xemo/
