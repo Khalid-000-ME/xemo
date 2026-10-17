@@ -1,6 +1,6 @@
 import { createClient, type CreateosSandboxClient, type Sandbox } from "@nodeops-createos/sandbox";
 import { env } from "@/lib/env";
-import { APP_DIR, APP_PORT, type ExecOutcome, type Runner } from "./runner";
+import { APP_DIR, APP_PORT, HEALTH_PATH, type ExecOutcome, type Runner } from "./runner";
 
 /**
  * Hosts the generated app needs to reach from inside the sandbox.
@@ -110,9 +110,9 @@ export class SandboxRunner implements Runner {
     });
 
     await sandbox.waitUntilRunning({ timeoutMs: 120_000 });
-    const runner = new SandboxRunner(sandbox.id, sandbox);
-    await runner.exec(`mkdir -p ${APP_DIR}`, "prepare workspace");
-    return runner;
+    // Created before the first `exec`, which cds into it.
+    await sandbox.sh(`mkdir -p ${shellQuote(APP_DIR)}`);
+    return new SandboxRunner(sandbox.id, sandbox);
   }
 
   async writeFile(relPath: string, content: string): Promise<void> {
@@ -120,13 +120,17 @@ export class SandboxRunner implements Runner {
     // `files.upload` creates parent directories as needed on the host agent;
     // mkdir -p first keeps behaviour identical across rootfs images.
     const dir = target.slice(0, target.lastIndexOf("/"));
-    if (dir && dir !== APP_DIR) await this.exec(`mkdir -p ${shellQuote(dir)}`);
+    if (dir && dir !== APP_DIR) await this.sandbox.sh(`mkdir -p ${shellQuote(dir)}`);
     await this.sandbox.files.upload(target, content);
   }
 
   async exec(script: string, label?: string): Promise<ExecOutcome> {
     const started = Date.now();
-    const res = await this.sandbox.sh(script, { cwd: APP_DIR } as never);
+    // `sh` takes no cwd — ExecOptions carries only stdin and env, so a cwd
+    // passed here is silently dropped and the script runs in `/`. Change
+    // directory inside the script instead, and fail if that directory is
+    // missing rather than running the command somewhere unintended.
+    const res = await this.sandbox.sh(`cd ${shellQuote(APP_DIR)} || exit 1\n${script}`);
     return {
       command: label ?? script,
       stdout: (res.result.stdout ?? "").slice(-8000),
@@ -148,8 +152,12 @@ export class SandboxRunner implements Runner {
 
     // A freshly provisioned ingress hostname can serve before its TLS
     // certificate lands, so verify https and fall back to http for the demo.
+    //
+    // The probe path is the app's own: the ingress reserves `/healthz` and
+    // answers it itself, so probing there would report a live app even when
+    // the process behind it is dead.
     const https = this.sandbox.previewUrl(port, { scheme: "https" });
-    if (await reachable(`${https}/healthz`)) {
+    if (await reachable(`${https}${HEALTH_PATH}`)) {
       this.publicBase = https;
       return https;
     }
