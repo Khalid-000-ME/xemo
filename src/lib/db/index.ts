@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS builds (
   plan TEXT,
   app_url TEXT,
   sandbox_id TEXT,
-  simulated INTEGER NOT NULL DEFAULT 0,
   human_price_usd REAL NOT NULL DEFAULT 5,
   stripe_product_id TEXT,
   stripe_price_id TEXT,
@@ -76,7 +75,6 @@ CREATE TABLE IF NOT EXISTS ledger (
   status TEXT NOT NULL DEFAULT 'succeeded',
   purpose TEXT NOT NULL,
   external_id TEXT,
-  settled INTEGER NOT NULL DEFAULT 1,
   metadata TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );

@@ -10,14 +10,12 @@ export type Direction = "inflow" | "outflow";
 
 export type PostEntry = {
   buildId?: string | null;
-  provider: "stripe" | "x402" | "paybox" | "createos";
+  provider: "stripe" | "x402" | "paybox" | "createos" | "anthropic";
   rail: Rail;
   direction: Direction;
   amountUsd: number;
   purpose: string;
   externalId?: string | null;
-  /** false when the amount is a known list price we did not actually settle. */
-  settled?: boolean;
   status?: "pending" | "succeeded" | "failed" | "refunded";
   metadata?: Record<string, unknown>;
 };
@@ -47,7 +45,6 @@ export async function post(entry: PostEntry): Promise<string | null> {
       amountUsd: round(entry.amountUsd),
       purpose: entry.purpose,
       externalId: entry.externalId ?? null,
-      settled: entry.settled ?? true,
       status: entry.status ?? "succeeded",
       metadata: entry.metadata ?? null,
     });
@@ -71,7 +68,7 @@ export async function post(entry: PostEntry): Promise<string | null> {
           : "x402_payment"
         : "cost",
       `${sign}$${round(entry.amountUsd).toFixed(4)} ${labelFor(entry)}`,
-      entry.settled === false ? "recorded at list price (not settled)" : null,
+      null,
       { provider: entry.provider, rail: entry.rail, purpose: entry.purpose, externalId: entry.externalId },
     );
   }
@@ -87,6 +84,8 @@ function labelFor(e: PostEntry): string {
       return "customer bought from the generated app (Stripe)";
     case "agent_api_call":
       return "agent called the generated app (x402)";
+    case "x402_purchase":
+      return "bought from an x402 service (PayBox)";
     case "sandbox_compute":
       return "CreateOS sandbox compute";
     case "llm_inference":
@@ -107,7 +106,6 @@ export type Economics = {
   costUsd: number;
   marginUsd: number;
   marginPct: number | null;
-  unsettledUsd: number;
 };
 
 function emptyEconomics(): Economics {
@@ -120,7 +118,6 @@ function emptyEconomics(): Economics {
     costUsd: 0,
     marginUsd: 0,
     marginPct: null,
-    unsettledUsd: 0,
   };
 }
 
@@ -140,7 +137,6 @@ export async function economics(buildId?: string): Promise<Economics> {
       if (r.rail === "compute") out.computeCostUsd += amt;
       else out.supplierCostUsd += amt;
     }
-    if (!r.settled) out.unsettledUsd += amt;
   }
 
   out.humanRevenueUsd = round(out.humanRevenueUsd);
@@ -151,7 +147,6 @@ export async function economics(buildId?: string): Promise<Economics> {
   out.costUsd = round(out.supplierCostUsd + out.computeCostUsd);
   out.marginUsd = round(out.revenueUsd - out.costUsd);
   out.marginPct = out.revenueUsd > 0 ? round((out.marginUsd / out.revenueUsd) * 100) : null;
-  out.unsettledUsd = round(out.unsettledUsd);
   return out;
 }
 

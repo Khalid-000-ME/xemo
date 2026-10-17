@@ -24,7 +24,6 @@ export const builds = sqliteTable(
 
     appUrl: text("app_url"),
     sandboxId: text("sandbox_id"),
-    simulated: integer("simulated", { mode: "boolean" }).notNull().default(false),
 
     // Human rail (Stripe)
     humanPriceUsd: real("human_price_usd").notNull().default(5),
@@ -95,7 +94,6 @@ export const ledger = sqliteTable(
     purpose: text("purpose").notNull(),
     // commission | app_purchase | agent_api_call | llm_inference | sandbox_compute | pdf_parse
     externalId: text("external_id"),
-    settled: integer("settled", { mode: "boolean" }).notNull().default(true),
     metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
   },
