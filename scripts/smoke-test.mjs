@@ -124,6 +124,16 @@ if (!live.x402) {
   ok("commission endpoint declines cleanly when unconfigured", unpaid.res.status === 503, `got ${unpaid.res.status}`);
   skip("402 challenge carries payment requirements", "X402_PAY_TO is not set");
   skip("challenge advertises bazaar discovery", "X402_PAY_TO is not set");
+} else if (unpaid.body?.error?.code === "FACILITATOR_UNSUPPORTED") {
+  // A network the facilitator cannot settle on is a configuration choice, not
+  // a defect — but it must be reported precisely and fast, never as a hang.
+  ok("facilitator mismatch fails fast with a named cause", unpaid.res.status === 503);
+  ok(
+    "the failure names the facilitator and the network",
+    typeof unpaid.body.error.network === "string" && typeof unpaid.body.error.facilitator === "string",
+  );
+  skip("402 challenge carries payment requirements", `facilitator cannot settle on ${unpaid.body.error.network}`);
+  skip("challenge advertises bazaar discovery", `facilitator cannot settle on ${unpaid.body.error.network}`);
 } else {
   ok("unpaid commission answers 402", unpaid.res.status === 402, `got ${unpaid.res.status}`);
 
