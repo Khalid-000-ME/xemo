@@ -30,8 +30,9 @@
 
 ## PayBox Chapter 1
 
-- [x] Plugin packaged in the real format — `.grok-plugin/plugin.json`, `.mcp.json`, `skills/`
-- [x] MCP server live at `/api/mcp` — initialize, tools/list, tools/call
+- [x] Plugin built on the official v1.0.2 hosted-runtime starter
+- [x] `pnpm test` passes — typecheck, deterministic double build, conformance
+- [x] Bundle is 398 KB, well under the 10 MiB cap
 - [x] Tools are read-only and quote rather than spend
 - [x] x402-gated endpoint returns `402` with signed payment requirements
 - [x] Bazaar discovery extension declared, with input and output schemas
@@ -40,7 +41,9 @@
 - [x] No PayBox server credential required — merchant side only (see `paybox.md`)
 - [ ] PayBox account created, passkey registered, KYC completed
 - [ ] A wallet credential funded with Base Sepolia USDC, to act as the buyer on camera
-- [ ] `.mcp.json` pointed at the deployed URL
+- [ ] `APPFACTORY_API_URL` + network-access hostname set in the portal
+- [ ] `X402_NETWORK=eip155:8453` (PayBox rejects Sepolia proposals)
+- [ ] `dist/plugin.mjs` uploaded and hosted preflight passed
 - [ ] One x402 payment actually settled against the endpoint
 - [ ] Demo video posted to X ([script](demo-script.md))
 - [ ] Submitted via `developer.paybox.sh` before **8:00 PM EDT, Sat 17 Oct**

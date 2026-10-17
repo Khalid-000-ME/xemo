@@ -1,159 +1,160 @@
-# PayBox: what it does here, and what it does not
+# PayBox: what it does here, and how to ship it
 
-Short answer: **PayBox is not an unwanted integration — it is the entire second
-submission — but it needs no PayBox credential on the server side, and the one piece that
-would have needed credentials has been removed because nothing called it.**
-
-The confusion is worth naming precisely, because PayBox can touch an app in two opposite
-directions and only one of them is ours.
+**PayBox is not an unwanted integration — it is the entire second submission.** But the
+direction matters, and an earlier version of this plugin was built in the wrong shape.
+Both points are recorded here.
 
 ---
+
+## The correction: PayBox hosts the plugin, it does not call a URL
+
+The first implementation packaged AppFactory the way `moonpay/paybox-plugin` is packaged
+— a `.grok-plugin/plugin.json` plus a `.mcp.json` pointing at a hosted MCP server. That
+is how PayBox ships **its own** plugin to agent hosts. It is **not** what the hackathon
+accepts.
+
+Per the [developer guide](https://developer.paybox.sh/requirements.md), a marketplace
+plugin is:
+
+> a standard TypeScript MCP server, bundled into a single `dist/plugin.mjs`, then
+> uploaded, configured, and tested in the developer portal.
+
+PayBox runs that bundle **in its own sandbox**. You upload a file; you do not expose a
+server. `paybox-plugin/` has been rebuilt on the official v1.0.2 starter, with its pinned
+toolchain and conformance harness.
 
 ## Direction 1 — inbound: agents pay *us*. This is the submission.
 
-A PayBox-connected agent discovers AppFactory, pays for a build, and gets a deployed app
-back. Here AgentFoundry is the **merchant**. The agent's wallet, the agent's passkey, the
-agent's approval — all on their side.
+A PayBox-connected agent commissions a build and gets a deployed app back. AgentFoundry
+is the **merchant**; the agent's wallet, passkey and approval are all on their side.
 
-What that requires from us is already built:
+| Piece | Where |
+|---|---|
+| Plugin bundle | `paybox-plugin/dist/plugin.mjs` |
+| x402-gated build endpoint | `POST /api/x402/commission` |
+| x402 agent rail on every generated app | `POST /api/x402/apps/[buildId]` |
+| Bazaar discovery declaration | both routes, via `declareDiscoveryExtension` |
+| Public catalogue | `GET /api/builds` |
 
-| Piece | Where | Needs a PayBox credential? |
+**No PayBox credential is needed on the server side.** Being a correct x402 resource
+server is the whole integration.
+
+## Direction 2 — outbound: we pay other services. Deliberately not built.
+
+An outbound client existed and was deleted: nothing imported it, the submission is the
+inbound direction, and the cost it was meant to pay — model inference — is not sold over
+x402. Booking real token usage against a rate card is honest and simpler.
+
+---
+
+## The three tools
+
+| Tool | Network? | What it does |
 |---|---|---|
-| x402-gated build endpoint | `POST /api/x402/commission` | **No** |
-| x402 agent rail on every generated app | `POST /api/x402/apps/[buildId]` | **No** |
-| Bazaar discovery declaration | both routes, via `declareDiscoveryExtension` | **No** |
-| MCP server the plugin points at | `GET`/`POST /api/mcp` | **No** |
-| The marketplace plugin package | `paybox-plugin/` | **No** |
+| `commission_app` | **No** | Returns an unsigned **x402 proposal**. Nothing is paid here. |
+| `get_build` | Yes | Status, URLs and economics of a build. Read-only, free. |
+| `list_apps` | Yes | Everything AppFactory has deployed. Read-only, free. |
 
-This works because PayBox speaks x402 natively. Its own developer page puts it plainly:
-wrap your endpoint and it works inside PayBox without a bespoke integration. The server
-side of that is just *being a correct x402 resource server* — which is what
-`src/lib/x402/server.ts` is.
+`commission_app` makes no network call at all — it builds a proposal and returns it.
+PayBox fetches the live 402, checks it against the proposal, and pays only with the
+user's approval. The plugin never sees a key, a wallet or a signature.
 
-**So: no `PAYBOX_API_KEY` is needed to ship, run, or demo the plugin.**
+### Why the paid request does not wait
 
-## Direction 2 — outbound: we pay other services. This was unwanted, and is gone.
-
-`src/lib/paybox/client.ts` used to exist: a real client that called PayBox's
-`use_service` so AgentFoundry could buy from other x402 endpoints. It worked, and it was
-**imported nowhere**. It has been deleted, for four reasons:
-
-1. **The hackathon asks for the opposite direction.** The requirement is a live plugin
-   that works end to end. Being a *consumer* of PayBox demonstrates nothing about our
-   plugin.
-2. **It needed credentials the submission does not.** `PAYBOX_API_KEY` plus
-   `PAYBOX_CREDENTIAL_ID`, and nothing in the build path used them.
-3. **The cost it was meant to pay is not an x402 service.** The original plan had the
-   agent "pay for inference through x402". Anthropic does not sell inference over x402.
-   What we do instead is honest and better: call the API directly and book the **real**
-   token cost from the usage the provider reports. That is where the margin number comes
-   from.
-4. **It was a demo liability.** Real money per call, and a passkey tap mid-recording if
-   the credential's approval mode is not autonomous.
-
-It is recoverable from git history if ever wanted.
-
-> **The one genuinely nice outbound shot needs no code from us.** "The agent buys from
-> the app it just built" is a great 10 seconds — and the agent does that with *PayBox's
-> own* `pay_x402` against our `agentEndpoint`. Our side is the merchant for that call
-> too.
+A hosted operation gets **ten seconds**. A build takes longer. So the proposal carries
+`"wait": false`: the endpoint validates the request shape and every required rail, accepts
+the job, and returns a `buildId`. The agent then polls `get_build`, which is also how to
+recover the result if the response is lost — rather than paying a second time.
 
 ---
 
-## Should this be a separate submission, or a separate app?
+## Two configuration facts that will bite you
 
-**Separate submission, same app.** Do not fork the product.
+### 1. The chain must be Base mainnet
 
-The two hackathons want different things *emphasised*, not different software:
+PayBox accepts an x402 proposal on **`eip155:8453` (Base mainnet)** or
+**`solana:mainnet`** — and nothing else. Base **Sepolia is not supported**.
 
-- **CreateOS × Stripe** → the agent writing and running code in a sandbox, deploying, and
-  taking a Stripe payment. Point the judges at `/`, a build timeline, and `/dashboard`.
-- **PayBox** → the marketplace plugin and the x402-gated service. Point the judges at
-  `paybox-plugin/` and `/api/x402/commission`.
+The platform's own `X402_NETWORK` must match what the plugin proposes, or PayBox's check
+of the live 402 against the proposal fails. So for the PayBox submission:
 
-The repository is already structured for that: `paybox-plugin/` is a self-contained
-artifact with its own README and skills, and it is the only thing a PayBox judge needs to
-read. One engine, two front doors — which is also the strongest thing you can say about
-the project, so say it rather than hiding it.
-
----
-
-## Setting up PayBox
-
-Nothing here is a server credential. All of it is so **you can act as the buyer** in the
-demo and so you are eligible to submit.
-
-### 1. Account, passkey, KYC — required to submit
-
-1. <https://app.paybox.sh> → sign up with email and register a **passkey**.
-2. Complete MoonPay onboarding/KYC. Winners must clear KYC/AML within five business days,
-   and the terms require the featured product's account setup before submitting — so do
-   this early, not after you record.
-
-### 2. A funded wallet, so a payment can actually settle
-
-The demo's most important second is a real `402` turning into a real settlement. For
-that, the *agent* needs funds on the network our endpoint advertises
-(`X402_NETWORK`, currently Base Sepolia):
-
-1. In PayBox, connect or create a wallet credential.
-2. Fund it with **Base Sepolia USDC** from <https://faucet.circle.com>, plus a little
-   Base Sepolia ETH for gas.
-3. Grant that credential to the connector you will demo with, and set its approval mode.
-   `autonomous` records more smoothly; `always_approve` shows the passkey step, which is
-   a better story. Pick one and rehearse it.
-
-> x402 needs a plain EOA payer. If the wallet is still EIP-7702 delegated, `pay_x402`
-> either errors or undelegates first where that is enabled — worth knowing before it
-> happens on camera.
-
-### 3. An agent host with both plugins
-
-The plugin is packaged for **Grok**, matching `moonpay/paybox-plugin`.
-
-1. Install the official **PayBox** plugin in your agent host and sign in — this is what
-   provides `pay_x402`, `use_service` and `discover_services`.
-2. Install **AppFactory**: point `paybox-plugin/.mcp.json` at your deployed URL first.
-
-```json
-{
-  "mcpServers": {
-    "appfactory": { "type": "http", "url": "https://your-deployment/api/mcp" }
-  }
-}
+```env
+X402_NETWORK=eip155:8453
+X402_COMMISSION_PRICE_USD=0.05   # real money — keep it small
 ```
 
-### 4. Verify before you record
+That means a little **real USDC on Base**, in the wallet credential you demo with. At
+$0.05 a build, a full rehearsal plus the recording costs well under a dollar. The USDC
+contract the proposal names is `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913`.
+
+> The CreateOS × Stripe submission is unaffected and can stay on Sepolia. These are two
+> different recordings; set the variable for whichever you are filming.
+
+### 2. The platform must be publicly reachable over HTTPS
+
+PayBox's sandbox calls your API. `localhost` is unreachable from it, and `proposeX402`
+rejects any non-HTTPS URL outright. You need a public origin for:
+
+- `NEXT_PUBLIC_APP_URL` (payment requirements and generated apps are built from it),
+- `APPFACTORY_API_URL` (the plugin variable, set in the portal),
+- the portal's **network access** allowlist — exact hostname, no wildcards.
+
+---
+
+## Setting it up
+
+### Build the bundle
 
 ```bash
-# our MCP server answers
-curl -s -X POST https://your-deployment/api/mcp \
-  -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools[].name'
-
-# the 402 an agent will receive, decoded
-curl -sD - -o /dev/null -X POST https://your-deployment/api/x402/commission \
-  -H 'content-type: application/json' -d '{"prompt":"a paid resume reviewer"}' \
-  | grep -i '^payment-required:' | sed 's/^[^:]*: //' | tr -d '\r' | base64 -d | jq
+cd paybox-plugin
+pnpm install --frozen-lockfile
+pnpm test        # typecheck, build twice, require identical bytes, run conformance
 ```
 
-The decoded challenge must show your own `payTo`, the right `network`, an `amount` in
-atomic units, and `extensions.bazaar`. If `payTo` is not your address, fix
-`X402_PAY_TO` — payments would go somewhere you do not control.
+A pass prints `"status":"passed"` with the artifact's size and sha256. Upload
+**`dist/plugin.mjs`** — not the source, not a zip.
 
-### 5. Then ask the agent, in one sentence
+The conformance sample is `commission_app`, chosen because it makes no network call, so
+the hosted check cannot fail for a reason unrelated to the plugin.
 
-> "Use AppFactory to build me a paid cold email auditor that charges $4 an audit."
+### Configure it in the portal
 
-A well-behaved agent will call `quote_app_build`, tell you it costs $0.50, pay with
-`pay_x402` once you approve, POST the resource, and hand back a live URL. That is the
-whole video.
+Under **Test & configure**:
+
+- **Network access** → add your platform's exact hostname (no scheme, no wildcard).
+- **Variables** → `APPFACTORY_API_URL` = `https://your-deployment`
+
+No secrets are required. AppFactory's API needs no credential from the plugin: the
+commission endpoint is paid for with x402, and the read endpoints are public.
+
+### Account prerequisites
+
+1. <https://app.paybox.sh> — account, **passkey**, and MoonPay KYC with a matching email.
+2. A wallet credential funded with **USDC on Base**, granted to the connector you demo
+   with. Choose the approval mode deliberately: `autonomous` records smoothly,
+   `always_approve` shows the passkey step, which tells a better story.
+
+> x402 needs a plain EOA payer. If the wallet is still EIP-7702 delegated, `pay_x402`
+> either errors or undelegates first — worth knowing before it happens on camera.
+
+---
+
+## Should this be a separate submission?
+
+**Separate submission, same app.** Do not fork the product. The two hackathons want
+different things *emphasised*, not different software:
+
+- **CreateOS × Stripe** → the agent writing and running code in a sandbox, deploying, and
+  taking a Stripe payment.
+- **PayBox** → the plugin bundle and the x402-gated service.
+
+`paybox-plugin/` is already a self-contained artifact and is the only thing a PayBox judge
+needs to read. One engine, two front doors — say that rather than hiding it.
 
 ---
 
 ## About the Bazaar listing
 
 There is nothing to submit. A resource is indexed after it **settles** a payment through
-a facilitator that indexes bazaar metadata — which is why the declaration lives in the
-402 challenge and why settling one real payment is what gets AppFactory listed. Do the
-paid call at least once, on the network you intend to be listed on.
+a facilitator that indexes bazaar metadata, which is why the declaration lives in the 402
+challenge and why settling one real payment is what gets AppFactory listed.
