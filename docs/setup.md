@@ -156,33 +156,16 @@ curl -sD - -o /dev/null -X POST http://localhost:3000/api/x402/commission \
 
 ---
 
-## 5. PayBox — the outbound spend rail *(optional)*
+## 5. PayBox — no server credential needed
 
-**Not required for a build.** This is only needed for AgentFoundry to *buy* from other
-x402 services. The PayBox *plugin* submission does not depend on it either — that is the
-inbound direction, which needs only steps 1–4.
+There is nothing to put in `.env.local` for PayBox. AgentFoundry is a **merchant** on
+PayBox, not a spender: PayBox-connected agents discover and pay the x402 endpoints from
+step 4, and that needs no key on this side.
 
-1. <https://app.paybox.sh> — create the account, register a passkey, complete onboarding.
-2. **Clients** screen → issue a personal API key (`pbx_live_...`).
-3. Pair a signing key and find your wallet credential id:
-   ```bash
-   npx @paybox-sh/sdk login
-   npx @paybox-sh/sdk connect
-   npx @paybox-sh/sdk --json credentials
-   ```
-   `paybox --json whoami` reporting `canSign: true` means setup is complete.
-
-```env
-PAYBOX_API_KEY=pbx_live_...
-PAYBOX_CREDENTIAL_ID=...
-PAYBOX_MAX_SPEND_PER_BUILD_USD=0.25
-```
-
-The cap is enforced against PayBox's *quoted* amount before anything is spent. If the
-credential's approval mode is not `autonomous`, a purchase waits on your passkey — the
-client polls to a terminal state and says so if it times out.
-
----
+What you *do* need is a PayBox account, a passkey, KYC, and a funded wallet — so that
+**you can act as the buyer** when demoing, and so you are eligible to submit.
+[`paybox.md`](paybox.md) covers all of it, and explains why the outbound client was
+removed.
 
 ## 6. Public URL
 
@@ -221,4 +204,3 @@ home page and confirm the timeline reaches **live**.
 | Deployed app URL does not resolve over HTTPS | A fresh ingress hostname can serve before its TLS certificate lands; the runner probes and falls back to `http`. |
 | Order stuck on `created` | The webhook never arrived. Is `stripe listen` still running, and does its secret match? |
 | x402 route answers `503` | `X402_PAY_TO` is unset. |
-| PayBox purchase never completes | The credential's approval mode needs a passkey tap. |

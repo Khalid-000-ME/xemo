@@ -202,6 +202,7 @@ Stated plainly, because a demo that hides these is worse than one that admits th
 ## Docs
 
 - [`docs/setup.md`](docs/setup.md) — the credential checklist, in order
+- [`docs/paybox.md`](docs/paybox.md) — what PayBox does here, and the one thing it deliberately does not
 - [`docs/architecture.md`](docs/architecture.md) — why these choices, and what was rejected
 - [`docs/demo-script.md`](docs/demo-script.md) — both demo runs, shot by shot
 - [`docs/submission-checklist.md`](docs/submission-checklist.md) — what is done and what needs an account

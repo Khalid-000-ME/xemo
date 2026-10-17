@@ -126,15 +126,16 @@ customers, so all that is required is being a correct x402 resource server. The 
 quote and never spend; `pay_x402` on the agent's side does the paying, keeping authority
 with PayBox and the user's passkey.
 
-For the **outbound** leg, `src/lib/paybox/client.ts` is a real client against
-`api.paybox.sh/mcp` with a `pbx_live_*` bearer. It calls `use_service`, polls the request
-to a terminal state, and enforces the per-build cap against the *quoted* amount before
-spending rather than after. Two details the PayBox x402 skill is explicit about and that
-the code follows: read `plan.x402.amount_usd` instead of converting atomic units, and
-inspect `payment` and `resource` separately at a terminal state, because a payment can
-settle while the fetch fails.
+An **outbound** client existed briefly — a real implementation against
+`api.paybox.sh/mcp` that called `use_service` so AgentFoundry could buy from other x402
+endpoints. It was deleted, because nothing imported it: the submission is the inbound
+direction, and the cost it was meant to pay (model inference) is not sold over x402
+anyway. Booking real token usage against a rate card is both honest and simpler. The
+reasoning is written up in [paybox.md](paybox.md).
 
-Unlike the other rails this one is **not** required: a build needs no outbound purchase.
+So PayBox requires **no credential on this side at all**. Being a correct x402 resource
+server is the whole integration, which is exactly what PayBox's "wrap your endpoint"
+promise means.
 
 ## Storage: SQLite with DDL at boot
 

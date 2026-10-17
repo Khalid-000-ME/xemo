@@ -37,8 +37,9 @@
 - [x] Bazaar discovery extension declared, with input and output schemas
 - [x] A failed build returns non-2xx, so the facilitator never settles
 - [x] Plugin returns both the app URL and the human checkout
-- [x] Real PayBox outbound client, with the per-build spend cap enforced before spending
+- [x] No PayBox server credential required — merchant side only (see `paybox.md`)
 - [ ] PayBox account created, passkey registered, KYC completed
+- [ ] A wallet credential funded with Base Sepolia USDC, to act as the buyer on camera
 - [ ] `.mcp.json` pointed at the deployed URL
 - [ ] One x402 payment actually settled against the endpoint
 - [ ] Demo video posted to X ([script](demo-script.md))
