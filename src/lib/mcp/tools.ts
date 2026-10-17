@@ -15,7 +15,7 @@ export type McpTool = {
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
 /**
- * Tools AppFactory contributes to a PayBox-connected agent.
+ * Tools Xemo contributes to a PayBox-connected agent.
  *
  * `quote_app_build` deliberately does not build anything. It returns the x402
  * terms for the paid endpoint, because spending is PayBox's job: the agent
@@ -60,7 +60,7 @@ export function tools(): McpTool[] {
     {
       name: "get_build",
       title: "Get a build",
-      description: "Look up the status, URLs and economics of a build AppFactory produced. Read-only.",
+      description: "Look up the status, URLs and economics of a build Xemo produced. Read-only.",
       inputSchema: {
         type: "object",
         properties: { buildId: { type: "string", description: "The build id returned when it was commissioned." } },
@@ -88,7 +88,7 @@ export function tools(): McpTool[] {
     {
       name: "list_apps",
       title: "List deployed apps",
-      description: "List the micro-SaaS apps AppFactory has deployed, newest first. Read-only.",
+      description: "List the micro-SaaS apps Xemo has deployed, newest first. Read-only.",
       inputSchema: {
         type: "object",
         properties: { limit: { type: "number", minimum: 1, maximum: 50, description: "How many to return." } },

@@ -4,7 +4,7 @@ import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core
 const now = sql`(unixepoch())`;
 
 /**
- * A build is one attempt by AgentFoundry to create, test, deploy and monetize
+ * A build is one attempt by Xemo to create, test, deploy and monetize
  * an app. `origin` records who commissioned it, which is what separates a
  * dashboard-driven build from one an agent paid for over x402.
  */

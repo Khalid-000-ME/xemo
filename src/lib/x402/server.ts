@@ -7,7 +7,7 @@ import type { Network } from "@x402/core/types";
 import { env } from "@/lib/env";
 
 /**
- * The x402 resource server AgentFoundry sells through.
+ * The x402 resource server Xemo sells through.
  *
  * There is exactly one of these: the platform is merchant of record for itself
  * and for every app it generates, which keeps real payment verification in one

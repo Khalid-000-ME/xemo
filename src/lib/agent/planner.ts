@@ -4,7 +4,7 @@ import { env, requireModel } from "@/lib/env";
 import { inferenceCostUsd } from "@/lib/pricing";
 import { normalizeSpec, type ProductSpec, productSpecSchema } from "./spec";
 
-const SYSTEM = `You are AgentFoundry's planner. You turn a product brief into the
+const SYSTEM = `You are Xemo's planner. You turn a product brief into the
 specification for one small, paid web product that will be generated, tested and
 deployed automatically.
 

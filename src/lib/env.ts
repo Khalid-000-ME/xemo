@@ -21,10 +21,10 @@ function num(key: string, fallback: number): number {
 
 export const env = {
   appUrl: str("NEXT_PUBLIC_APP_URL") ?? "http://localhost:3000",
-  databaseUrl: str("DATABASE_URL") ?? "./data/agentfoundry.db",
+  databaseUrl: str("DATABASE_URL") ?? "./data/xemo.db",
 
   groqApiKey: str("GROQ_API_KEY"),
-  agentModel: str("AGENTFOUNDRY_MODEL") ?? "openai/gpt-oss-120b",
+  agentModel: str("XEMO_MODEL") ?? "openai/gpt-oss-120b",
 
   createos: {
     apiKey: str("CREATEOS_SANDBOX_API_KEY") ?? str("CREATEOS_API_KEY"),
@@ -57,7 +57,7 @@ export const env = {
     payTo: str("X402_PAY_TO"),
     commissionPriceUsd: num("X402_COMMISSION_PRICE_USD", 0.5),
     generatedAppPriceUsd: num("X402_GENERATED_APP_PRICE_USD", 0.02),
-    serviceName: str("X402_SERVICE_NAME") ?? "AppFactory",
+    serviceName: str("X402_SERVICE_NAME") ?? "Xemo",
     /**
      * Coinbase CDP credentials. Required for Base mainnet: the public
      * x402.org facilitator is testnet only.
@@ -85,7 +85,7 @@ export class MissingCredentialsError extends Error {
   ) {
     super(
       `${rail} not configured. Set ${missing.join(", ")} in .env.local. ` +
-        `AgentFoundry has no simulated mode, so this cannot proceed without them.`,
+        `Xemo has no simulated mode, so this cannot proceed without them.`,
     );
   }
 }

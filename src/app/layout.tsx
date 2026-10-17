@@ -3,7 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AgentFoundry",
+  title: "Xemo",
   description:
     "An agent that builds, deploys and monetizes a micro-SaaS from one prompt — selling to humans over Stripe and to agents over x402.",
 };
@@ -25,9 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 className="grid size-6 place-items-center rounded-md text-[13px] font-bold text-white"
                 style={{ background: "var(--brand)" }}
               >
-                A
+                X
               </span>
-              AgentFoundry
+              Xemo
             </Link>
             <nav className="ml-auto flex items-center gap-1 text-sm">
               <Link

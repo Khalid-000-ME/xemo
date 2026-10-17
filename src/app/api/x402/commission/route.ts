@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 /**
- * AppFactory — the x402-gated service a PayBox-connected agent buys.
+ * Xemo — the x402-gated service a PayBox-connected agent buys.
  *
  * An unpaid call answers 402 with payment requirements; a call carrying a valid
  * `X-PAYMENT` header commissions a real build and returns the live app. The
@@ -64,7 +64,7 @@ const discovery = declareDiscoveryExtension({
       status: "live",
       productName: "ResumeForge",
       appUrl: "https://sandbox-abc.sb.createos.sh",
-      agentEndpoint: "https://agentfoundry.example/api/x402/apps/af_abc123",
+      agentEndpoint: "https://xemo.example/api/x402/apps/af_abc123",
       humanPriceUsd: 5,
       agentPriceUsd: 0.02,
       buildSeconds: 74,

@@ -46,7 +46,7 @@ export default async function Dashboard() {
       <header>
         <h1 className="text-[30px] font-semibold tracking-[-0.022em]">Economics</h1>
         <p className="mt-2 max-w-2xl text-[15px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
-          Every build AgentFoundry ships earns on two rails and spends on two more. This is the whole
+          Every build Xemo ships earns on two rails and spends on two more. This is the whole
           business in one table.
         </p>
       </header>

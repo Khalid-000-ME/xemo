@@ -22,7 +22,7 @@ export const maxDuration = 300;
 /**
  * The agent rail for every generated app.
  *
- * This is the second half of the product's claim: an app AgentFoundry ships
+ * This is the second half of the product's claim: an app Xemo ships
  * sells to humans through Stripe Checkout *and* to agents through x402, from
  * the moment it goes live. The platform is merchant of record for both, which
  * is why one gateway serves every build.
@@ -138,7 +138,7 @@ const paidRoute = x402Configured()
       {
         "/api/x402/apps/[buildId]": {
           accepts: accepts(PRICE),
-          description: "Call a micro-SaaS built by AgentFoundry, priced per request for agents.",
+          description: "Call a micro-SaaS built by Xemo, priced per request for agents.",
           // No `resource` override here: the path carries a build id, so a fixed
           // string would advertise the wrong app. The catalog key comes from the
           // route pattern instead. Deploy behind a host that forwards its own

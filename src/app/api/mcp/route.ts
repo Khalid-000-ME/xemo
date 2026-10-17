@@ -9,7 +9,7 @@ const PROTOCOL_VERSION = "2025-06-18";
 type JsonRpcId = string | number | null;
 
 /**
- * AppFactory's MCP server — the endpoint the PayBox plugin's `.mcp.json`
+ * Xemo's MCP server — the endpoint the PayBox plugin's `.mcp.json`
  * points at.
  *
  * The JSON-RPC envelope is handled directly rather than through a transport
@@ -29,7 +29,7 @@ export async function GET() {
   // Discovery convenience: not part of MCP, but it makes the endpoint
   // inspectable with a browser or curl during a demo.
   return Response.json({
-    name: "appfactory",
+    name: "xemo",
     protocolVersion: PROTOCOL_VERSION,
     transport: "streamable-http",
     endpoint: `${env.appUrl}/api/mcp`,
@@ -56,9 +56,9 @@ export async function POST(req: Request) {
       return result(id, {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "appfactory", title: "AppFactory", version: "1.0.0" },
+        serverInfo: { name: "xemo", title: "Xemo", version: "1.0.0" },
         instructions:
-          "AppFactory builds, deploys and monetizes a micro-SaaS from one prompt. Call `quote_app_build` " +
+          "Xemo builds, deploys and monetizes a micro-SaaS from one prompt. Call `quote_app_build` " +
           "first to get x402 terms and the price, tell the user that price, then use PayBox `pay_x402` to " +
           "pay the returned resource and POST to it with the X-PAYMENT header. Use `get_build` to follow a " +
           "build and `list_apps` to see what has shipped.",

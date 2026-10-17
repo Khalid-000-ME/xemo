@@ -30,7 +30,7 @@ export default async function Home() {
           One prompt in. A business that sells to humans <em className="not-italic" style={{ color: "var(--brand)" }}>and</em> to agents out.
         </h1>
         <p className="mt-4 max-w-2xl text-[17px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
-          AgentFoundry plans a product, writes it, runs it in a CreateOS microVM, publishes it to a public URL,
+          Xemo plans a product, writes it, runs it in a CreateOS microVM, publishes it to a public URL,
           then opens both payment rails: Stripe Checkout for people, and an{" "}
           <a href="https://x402.org" className="underline decoration-dotted underline-offset-2" style={{ color: "var(--brand)" }}>
             x402
@@ -78,7 +78,7 @@ export default async function Home() {
           <Card>
             <Label>Buy a build as an agent</Label>
             <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
-              AppFactory is itself sold over x402 at{" "}
+              Xemo is itself sold over x402 at{" "}
               <strong style={{ color: "var(--fg)" }}>${env.x402.commissionPriceUsd.toFixed(2)}</strong> per build, on{" "}
               <Mono>{env.x402.network}</Mono>. A PayBox-connected agent discovers it, pays, and gets a deployed app
               back in one call.
