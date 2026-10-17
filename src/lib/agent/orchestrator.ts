@@ -30,7 +30,6 @@ export type StartBuildArgs = {
   prompt: string;
   productName?: string;
   priceUsd?: number;
-  agentPriceUsd?: number;
   template?: string;
   origin?: "dashboard" | "x402" | "mcp";
   /** Ledger entry for the inbound payment that commissioned this build. */
@@ -86,10 +85,12 @@ function validate(args: StartBuildArgs): { priceUsd: number; agentPriceUsd: numb
     );
   }
 
-  const agentPriceUsd = args.agentPriceUsd ?? env.x402.generatedAppPriceUsd;
-  if (!Number.isFinite(agentPriceUsd) || agentPriceUsd <= 0 || agentPriceUsd > 10) {
-    throw new ValidationError("agentPriceUsd must be between 0 and 10", "AGENT_PRICE_OUT_OF_RANGE");
-  }
+  /**
+   * The agent rail is priced by the platform, not per build: the x402 resource
+   * server advertises one price for the generated-app gateway, so a per-build
+   * override would advertise a figure the gateway does not actually charge.
+   */
+  const agentPriceUsd = env.x402.generatedAppPriceUsd;
 
   return { priceUsd, agentPriceUsd };
 }

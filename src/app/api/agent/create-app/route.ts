@@ -1,0 +1,30 @@
+import { startBuild, ValidationError } from "@/lib/agent/orchestrator";
+import { fail, numOr, ok, readJson, str } from "@/lib/http";
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+/**
+ * Dashboard entry point. Returns as soon as the build is queued so the client
+ * can follow the timeline; the build itself continues in the background.
+ */
+export async function POST(req: Request) {
+  const body = await readJson(req);
+  const prompt = str(body.prompt);
+  if (!prompt) return fail(400, "PROMPT_REQUIRED", "a product brief is required");
+
+  try {
+    const { buildId } = await startBuild({
+      prompt,
+      productName: str(body.productName),
+      priceUsd: body.priceUsd === undefined ? undefined : numOr(body.priceUsd, 5),
+      template: str(body.template),
+      origin: "dashboard",
+    });
+
+    return ok({ buildId, status: "queued", timelineUrl: `/build/${buildId}` }, 202);
+  } catch (err) {
+    if (err instanceof ValidationError) return fail(400, err.code, err.message);
+    return fail(500, "BUILD_START_FAILED", err instanceof Error ? err.message : "could not start the build");
+  }
+}
