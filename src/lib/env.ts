@@ -20,8 +20,17 @@ function num(key: string, fallback: number): number {
 }
 
 export const env = {
-  appUrl: str("NEXT_PUBLIC_APP_URL") ?? "http://localhost:3000",
+  /**
+   * Public origin. Falls back to the production hostname Vercel injects, so a
+   * first deploy works before NEXT_PUBLIC_APP_URL has been set by hand.
+   */
+  appUrl:
+    str("NEXT_PUBLIC_APP_URL") ??
+    (str("VERCEL_PROJECT_PRODUCTION_URL") ? `https://${str("VERCEL_PROJECT_PRODUCTION_URL")}` : undefined) ??
+    "http://localhost:3000",
   databaseUrl: str("DATABASE_URL") ?? "./data/xemo.db",
+  /** Required for a remote libSQL/Turso database. */
+  databaseAuthToken: str("DATABASE_AUTH_TOKEN"),
 
   groqApiKey: str("GROQ_API_KEY"),
   agentModel: str("XEMO_MODEL") ?? "openai/gpt-oss-120b",

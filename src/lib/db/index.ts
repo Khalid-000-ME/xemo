@@ -1,123 +1,73 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { createClient, type Client } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
 import { env } from "@/lib/env";
+import { SCHEMA_STATEMENTS } from "./schema.sql";
 import * as schema from "./schema";
 
 /**
- * Schema is applied with plain DDL at first connection rather than a migration
- * step. One less command to get wrong on a clock, and the shape is small enough
- * that `IF NOT EXISTS` is honest.
+ * One SQLite dialect, two places to run it.
+ *
+ * Locally `DATABASE_URL` is a file; on Vercel it is a `libsql://` URL, because a
+ * serverless filesystem is ephemeral and every invocation can land on a fresh
+ * instance. libSQL speaks the same dialect as SQLite, so the schema and every
+ * query are identical in both places.
  */
-const DDL = `
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
-PRAGMA busy_timeout = 5000;
+function resolveUrl(): { url: string; remote: boolean } {
+  const raw = env.databaseUrl;
+  const remote = /^(libsql|https?|wss?):\/\//.test(raw);
 
-CREATE TABLE IF NOT EXISTS builds (
-  id TEXT PRIMARY KEY,
-  origin TEXT NOT NULL DEFAULT 'dashboard',
-  prompt TEXT NOT NULL,
-  product_name TEXT NOT NULL,
-  template TEXT NOT NULL,
-  brand_color TEXT NOT NULL DEFAULT 'indigo',
-  status TEXT NOT NULL DEFAULT 'queued',
-  status_detail TEXT,
-  plan TEXT,
-  app_url TEXT,
-  sandbox_id TEXT,
-  human_price_usd REAL NOT NULL DEFAULT 5,
-  stripe_product_id TEXT,
-  stripe_price_id TEXT,
-  stripe_checkout_url TEXT,
-  agent_price_usd REAL NOT NULL DEFAULT 0.02,
-  agent_endpoint_url TEXT,
-  started_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  completed_at INTEGER,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-CREATE INDEX IF NOT EXISTS builds_status_idx ON builds(status);
-CREATE INDEX IF NOT EXISTS builds_created_idx ON builds(created_at);
+  if (remote) return { url: raw, remote: true };
 
-CREATE TABLE IF NOT EXISTS build_events (
-  id TEXT PRIMARY KEY,
-  build_id TEXT NOT NULL,
-  seq INTEGER NOT NULL,
-  type TEXT NOT NULL,
-  title TEXT NOT NULL,
-  detail TEXT,
-  metadata TEXT,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-CREATE INDEX IF NOT EXISTS build_events_build_idx ON build_events(build_id, seq);
+  // A file database on Vercel would "work" and then silently lose every build
+  // between invocations. Refuse rather than appear to function.
+  if (process.env.VERCEL) {
+    throw new Error(
+      "DATABASE_URL is a local file, but this is a Vercel deployment where the filesystem is " +
+        "ephemeral. Set DATABASE_URL to a libsql:// URL (and DATABASE_AUTH_TOKEN) — see docs/vercel.md.",
+    );
+  }
 
-CREATE TABLE IF NOT EXISTS generated_files (
-  id TEXT PRIMARY KEY,
-  build_id TEXT NOT NULL,
-  path TEXT NOT NULL,
-  content TEXT NOT NULL,
-  language TEXT NOT NULL DEFAULT 'text',
-  bytes INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-CREATE INDEX IF NOT EXISTS generated_files_build_idx ON generated_files(build_id);
+  const path = raw.startsWith("file:")
+    ? raw.slice("file:".length)
+    : // turbopackIgnore: the db path is runtime configuration, not a traced import.
+      resolve(/* turbopackIgnore: true */ process.cwd(), raw);
 
-CREATE TABLE IF NOT EXISTS ledger (
-  id TEXT PRIMARY KEY,
-  build_id TEXT,
-  provider TEXT NOT NULL,
-  rail TEXT NOT NULL,
-  direction TEXT NOT NULL,
-  amount_usd REAL NOT NULL,
-  currency TEXT NOT NULL DEFAULT 'USD',
-  status TEXT NOT NULL DEFAULT 'succeeded',
-  purpose TEXT NOT NULL,
-  external_id TEXT,
-  metadata TEXT,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-CREATE INDEX IF NOT EXISTS ledger_build_idx ON ledger(build_id);
-CREATE INDEX IF NOT EXISTS ledger_rail_idx ON ledger(rail, direction);
-CREATE UNIQUE INDEX IF NOT EXISTS ledger_external_uq
-  ON ledger(provider, external_id) WHERE external_id IS NOT NULL;
-
-CREATE TABLE IF NOT EXISTS processed_events (
-  id TEXT PRIMARY KEY,
-  provider TEXT NOT NULL,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-
-CREATE TABLE IF NOT EXISTS orders (
-  id TEXT PRIMARY KEY,
-  build_id TEXT NOT NULL,
-  rail TEXT NOT NULL DEFAULT 'human',
-  status TEXT NOT NULL DEFAULT 'created',
-  input_ref TEXT,
-  stripe_session_id TEXT,
-  amount_usd REAL NOT NULL DEFAULT 0,
-  result TEXT,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-CREATE INDEX IF NOT EXISTS orders_build_idx ON orders(build_id);
-CREATE INDEX IF NOT EXISTS orders_session_idx ON orders(stripe_session_id);
-`;
-
-function open() {
-  // turbopackIgnore: the db path is runtime configuration, not a traced import.
-  const path = resolve(/* turbopackIgnore: true */ process.cwd(), env.databaseUrl);
   const dir = dirname(path);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  const sqlite = new Database(path);
-  sqlite.exec(DDL);
-  return drizzle(sqlite, { schema });
+  return { url: `file:${path}`, remote: false };
+}
+
+function open(): { client: Client; db: ReturnType<typeof drizzle<typeof schema>>; remote: boolean } {
+  const { url, remote } = resolveUrl();
+  const client = createClient({
+    url,
+    ...(remote ? { authToken: env.databaseAuthToken } : {}),
+  });
+  return { client, db: drizzle(client, { schema }), remote };
 }
 
 // Next.js dev reloads modules; keep one handle per process.
-const globalForDb = globalThis as unknown as { __afDb?: ReturnType<typeof open> };
-export const db = globalForDb.__afDb ?? open();
-if (process.env.NODE_ENV !== "production") globalForDb.__afDb = db;
+const globalForDb = globalThis as unknown as { __xemoDb?: ReturnType<typeof open> };
+const handle = globalForDb.__xemoDb ?? open();
+if (process.env.NODE_ENV !== "production") globalForDb.__xemoDb = handle;
 
+export const db = handle.db;
 export { schema };
+
+/**
+ * Create the tables if they are missing.
+ *
+ * Runs once per server start from `instrumentation.ts`. A single batch is one
+ * round trip to a remote database and atomic, so a cold start never observes a
+ * half-built schema.
+ */
+export async function ensureSchema(): Promise<void> {
+  if (!handle.remote) {
+    // Connection settings, not schema — valid only on a local file.
+    await handle.client.execute("PRAGMA journal_mode = WAL");
+    await handle.client.execute("PRAGMA busy_timeout = 5000");
+  }
+  await handle.client.batch(SCHEMA_STATEMENTS, "write");
+}
