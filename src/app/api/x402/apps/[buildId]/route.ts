@@ -139,6 +139,10 @@ const paidRoute = x402Configured()
         "/api/x402/apps/[buildId]": {
           accepts: accepts(PRICE),
           description: "Call a micro-SaaS built by AgentFoundry, priced per request for agents.",
+          // No `resource` override here: the path carries a build id, so a fixed
+          // string would advertise the wrong app. The catalog key comes from the
+          // route pattern instead. Deploy behind a host that forwards its own
+          // name, or the advertised origin follows the inbound Host header.
           mimeType: "application/json",
           serviceName: `${env.x402.serviceName} app`,
           tags: ["analysis", "saas", "agent-rail"],

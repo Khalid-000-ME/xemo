@@ -197,6 +197,11 @@ const paidRoute = x402Configured()
       {
         "/api/x402/commission": {
           accepts: accepts(PRICE),
+          // Pinned to the configured public origin rather than derived from the
+          // request. Behind a proxy or tunnel the inbound Host is the internal
+          // one, which would advertise a resource URL the payer cannot reach —
+          // and which would not match the URL in an agent's payment proposal.
+          resource: `${env.appUrl}/api/x402/commission`,
           description: "Commission a deployed, Stripe-and-x402 monetized micro-SaaS from one prompt.",
           mimeType: "application/json",
           serviceName: env.x402.serviceName,
