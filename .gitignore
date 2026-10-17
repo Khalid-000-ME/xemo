@@ -22,3 +22,7 @@ drizzle/meta/_journal.json.bak
 
 # planning doc — not part of the deliverable
 AgentFoundry_PRD.md
+
+# production env for Vercel import — secrets
+.env.vercel
+.vercel/
