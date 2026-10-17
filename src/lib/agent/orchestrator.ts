@@ -200,7 +200,7 @@ async function run(
   // Planner inference is a real cost of goods, priced from reported usage.
   await post({
     buildId,
-    provider: "anthropic",
+    provider: "groq",
     rail: "supplier",
     direction: "outflow",
     amountUsd: plan.costUsd,

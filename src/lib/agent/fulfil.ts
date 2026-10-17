@@ -1,5 +1,5 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { generateObject } from "ai";
+import { createGroq } from "@ai-sdk/groq";
+import { generateText, Output } from "ai";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { builds, orders } from "@/lib/db/schema";
@@ -40,12 +40,12 @@ export async function fulfil(args: {
   const spec = specOf(build);
   if (!spec) throw new Error(`build ${args.buildId} has no usable product specification`);
 
-  const anthropic = createAnthropic({ apiKey: env.anthropicApiKey });
+  const groq = createGroq({ apiKey: env.groqApiKey });
 
   try {
-    const { object, usage } = await generateObject({
-      model: anthropic(env.agentModel),
-      schema: deliverableSchema(spec),
+    const { output, usage } = await generateText({
+      model: groq(env.agentModel),
+      output: Output.object({ schema: deliverableSchema(spec) }),
       system: `You are the fulfilment engine for "${spec.productName}" — ${spec.tagline}
 
 ${spec.analysisInstructions}
@@ -62,7 +62,7 @@ fields and score it accordingly.`,
 
     await post({
       buildId: args.buildId,
-      provider: "anthropic",
+      provider: "groq",
       rail: "supplier",
       direction: "outflow",
       amountUsd: costUsd,
@@ -77,7 +77,7 @@ fields and score it accordingly.`,
       },
     });
 
-    const result = object as Record<string, unknown>;
+    const result = output as Record<string, unknown>;
     if (args.orderId) {
       await db
         .update(orders)

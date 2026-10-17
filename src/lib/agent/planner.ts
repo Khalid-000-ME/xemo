@@ -1,8 +1,8 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { generateObject } from "ai";
+import { createGroq } from "@ai-sdk/groq";
+import { generateText, Output } from "ai";
 import { env, requireModel } from "@/lib/env";
 import { inferenceCostUsd } from "@/lib/pricing";
-import { type ProductSpec, productSpecSchema } from "./spec";
+import { normalizeSpec, type ProductSpec, productSpecSchema } from "./spec";
 
 const SYSTEM = `You are AgentFoundry's planner. You turn a product brief into the
 specification for one small, paid web product that will be generated, tested and
@@ -52,19 +52,19 @@ export async function planProduct(args: {
 }): Promise<PlanResult> {
   requireModel();
 
-  const anthropic = createAnthropic({ apiKey: env.anthropicApiKey });
+  const groq = createGroq({ apiKey: env.groqApiKey });
 
-  const { object, usage } = await generateObject({
-    model: anthropic(env.agentModel),
-    schema: productSpecSchema,
+  const { output, usage } = await generateText({
+    model: groq(env.agentModel),
+    output: Output.object({ schema: productSpecSchema }),
     system: SYSTEM,
     prompt: prompt(args.brief, args.productName, args.priceUsd),
-    maxRetries: 2,
+    maxRetries: 3,
     abortSignal: AbortSignal.timeout(120_000),
   });
 
   return {
-    spec: object,
+    spec: normalizeSpec(output),
     costUsd: inferenceCostUsd(env.agentModel, usage),
     inputTokens: usage.inputTokens ?? 0,
     outputTokens: usage.outputTokens ?? 0,

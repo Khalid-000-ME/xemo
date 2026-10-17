@@ -23,8 +23,8 @@ export const env = {
   appUrl: str("NEXT_PUBLIC_APP_URL") ?? "http://localhost:3000",
   databaseUrl: str("DATABASE_URL") ?? "./data/agentfoundry.db",
 
-  anthropicApiKey: str("ANTHROPIC_API_KEY"),
-  agentModel: str("AGENTFOUNDRY_MODEL") ?? "claude-sonnet-5-5",
+  groqApiKey: str("GROQ_API_KEY"),
+  agentModel: str("AGENTFOUNDRY_MODEL") ?? "openai/gpt-oss-120b",
 
   createos: {
     apiKey: str("CREATEOS_SANDBOX_API_KEY") ?? str("CREATEOS_API_KEY"),
@@ -92,7 +92,7 @@ function require_(subject: string, vars: Record<string, string | undefined>): vo
 }
 
 export const requireModel = () =>
-  require_("The agent model is", { ANTHROPIC_API_KEY: env.anthropicApiKey });
+  require_("The agent model is", { GROQ_API_KEY: env.groqApiKey });
 
 export const requireCreateos = () =>
   require_("CreateOS Sandbox is", { CREATEOS_SANDBOX_API_KEY: env.createos.apiKey });
@@ -104,6 +104,15 @@ export const requireStripe = () =>
   });
 
 export const requireX402 = () => require_("The x402 agent rail is", { X402_PAY_TO: env.x402.payTo });
+
+/** A sandbox cannot reach the operator's loopback interface. */
+export function appUrlIsLocal(): boolean {
+  try {
+    return /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(new URL(env.appUrl).hostname);
+  } catch {
+    return true;
+  }
+}
 
 export type RailStatus = {
   id: string;
@@ -122,9 +131,11 @@ export function readiness(): RailStatus[] {
       id: "model",
       label: "Agent model",
       blocking: true,
-      ready: Boolean(env.anthropicApiKey),
-      missing: env.anthropicApiKey ? [] : ["ANTHROPIC_API_KEY"],
-      detail: env.anthropicApiKey ? env.agentModel : "the planner and fulfilment both need this",
+      ready: Boolean(env.groqApiKey),
+      missing: env.groqApiKey ? [] : ["GROQ_API_KEY"],
+      detail: env.groqApiKey
+        ? `${env.agentModel} via Groq`
+        : "the planner and fulfilment both need this",
     },
     {
       id: "createos",
@@ -159,6 +170,16 @@ export function readiness(): RailStatus[] {
       detail: env.x402.payTo
         ? `${env.x402.network} → ${env.x402.payTo.slice(0, 10)}…`
         : "no payee means no priced resource can be advertised",
+    },
+    {
+      id: "callback",
+      label: "Public platform URL",
+      blocking: false,
+      ready: !appUrlIsLocal(),
+      missing: appUrlIsLocal() ? ["NEXT_PUBLIC_APP_URL"] : [],
+      detail: appUrlIsLocal()
+        ? `${env.appUrl} is loopback — builds will succeed, but a deployed app cannot call back for checkout or fulfilment`
+        : env.appUrl,
     },
   ];
   return rows;

@@ -10,7 +10,7 @@ export type Direction = "inflow" | "outflow";
 
 export type PostEntry = {
   buildId?: string | null;
-  provider: "stripe" | "x402" | "createos" | "anthropic";
+  provider: "stripe" | "x402" | "createos" | "groq";
   rail: Rail;
   direction: Direction;
   amountUsd: number;
