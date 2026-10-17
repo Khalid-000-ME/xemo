@@ -25,7 +25,6 @@ const PRICE = env.x402.generatedAppPriceUsd;
 
 const discovery = declareDiscoveryExtension({
   bodyType: "json",
-  method: "POST",
   input: { input: "The text to analyse, at least 40 characters." },
   inputSchema: {
     type: "object",
@@ -115,11 +114,9 @@ export const POST = x402Configured()
           accepts: accepts(PRICE),
           description: "Call a micro-SaaS built by AgentFoundry, priced per request for agents.",
           mimeType: "application/json",
-          resource: {
-            serviceName: `${env.x402.serviceName} app`,
-            tags: ["analysis", "saas", "agent-rail"],
-            ...(env.x402.iconUrl ? { iconUrl: env.x402.iconUrl } : {}),
-          },
+          serviceName: `${env.x402.serviceName} app`,
+          tags: ["analysis", "saas", "agent-rail"],
+          ...(env.x402.iconUrl ? { iconUrl: env.x402.iconUrl } : {}),
           extensions: discovery,
         },
       },

@@ -21,7 +21,6 @@ const PRICE = env.x402.commissionPriceUsd;
 
 const discovery = declareDiscoveryExtension({
   bodyType: "json",
-  method: "POST",
   input: {
     prompt: "Build a paid AI resume reviewer that charges $5 per review",
     productName: "ResumeForge",
@@ -147,11 +146,9 @@ export const POST = x402Configured()
           accepts: accepts(PRICE),
           description: "Commission a deployed, Stripe-and-x402 monetized micro-SaaS from one prompt.",
           mimeType: "application/json",
-          resource: {
-            serviceName: env.x402.serviceName,
-            tags: ["merchant-tools", "deploy", "codegen", "saas"],
-            ...(env.x402.iconUrl ? { iconUrl: env.x402.iconUrl } : {}),
-          },
+          serviceName: env.x402.serviceName,
+          tags: ["merchant-tools", "deploy", "codegen", "saas"],
+          ...(env.x402.iconUrl ? { iconUrl: env.x402.iconUrl } : {}),
           extensions: discovery,
         },
       },
