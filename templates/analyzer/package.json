@@ -1,0 +1,13 @@
+{
+  "name": "{{SLUG}}",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "{{TAGLINE}}",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.mjs",
+    "typecheck": "node --check server.mjs && node --check smoke-test.mjs",
+    "test": "node smoke-test.mjs"
+  }
+}
