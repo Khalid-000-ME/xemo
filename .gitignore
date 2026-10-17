@@ -1,0 +1,24 @@
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets — never commit
+.env
+.env.*
+!.env.example
+.projects/vault/
+.projects/cache/
+
+# local state
+data/*.db
+data/*.db-*
+data/workspaces/
+drizzle/meta/_journal.json.bak
+.DS_Store
+*.log
+
+# planning doc — not part of the deliverable
+AgentFoundry_PRD.md
