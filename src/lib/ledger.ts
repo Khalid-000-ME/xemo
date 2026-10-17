@@ -10,7 +10,7 @@ export type Direction = "inflow" | "outflow";
 
 export type PostEntry = {
   buildId?: string | null;
-  provider: "stripe" | "x402" | "paybox" | "createos" | "anthropic";
+  provider: "stripe" | "x402" | "createos" | "anthropic";
   rail: Rail;
   direction: Direction;
   amountUsd: number;
@@ -84,8 +84,6 @@ function labelFor(e: PostEntry): string {
       return "customer bought from the generated app (Stripe)";
     case "agent_api_call":
       return "agent called the generated app (x402)";
-    case "x402_purchase":
-      return "bought from an x402 service (PayBox)";
     case "sandbox_compute":
       return "CreateOS sandbox compute";
     case "llm_inference":

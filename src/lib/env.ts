@@ -61,14 +61,6 @@ export const env = {
     iconUrl: str("X402_ICON_URL"),
   },
 
-  paybox: {
-    apiKey: str("PAYBOX_API_KEY"),
-    apiUrl: str("PAYBOX_API_URL") ?? "https://api.paybox.sh",
-    mcpUrl: str("PAYBOX_MCP_URL") ?? "https://api.paybox.sh/mcp",
-    credentialId: str("PAYBOX_CREDENTIAL_ID"),
-    maxSpendPerBuildUsd: num("PAYBOX_MAX_SPEND_PER_BUILD_USD", 0.25),
-  },
-
   limits: {
     maxPromptChars: num("LIMIT_MAX_PROMPT_CHARS", 2000),
     maxProductNameChars: num("LIMIT_MAX_PRODUCT_NAME_CHARS", 60),
@@ -112,12 +104,6 @@ export const requireStripe = () =>
   });
 
 export const requireX402 = () => require_("The x402 agent rail is", { X402_PAY_TO: env.x402.payTo });
-
-export const requirePaybox = () =>
-  require_("PayBox is", {
-    PAYBOX_API_KEY: env.paybox.apiKey,
-    PAYBOX_CREDENTIAL_ID: env.paybox.credentialId,
-  });
 
 export type RailStatus = {
   id: string;
@@ -173,20 +159,6 @@ export function readiness(): RailStatus[] {
       detail: env.x402.payTo
         ? `${env.x402.network} → ${env.x402.payTo.slice(0, 10)}…`
         : "no payee means no priced resource can be advertised",
-    },
-    {
-      id: "paybox",
-      label: "PayBox · agent spend",
-      blocking: false,
-      ready: Boolean(env.paybox.apiKey && env.paybox.credentialId),
-      missing: [
-        ...(env.paybox.apiKey ? [] : ["PAYBOX_API_KEY"]),
-        ...(env.paybox.credentialId ? [] : ["PAYBOX_CREDENTIAL_ID"]),
-      ],
-      detail:
-        env.paybox.apiKey && env.paybox.credentialId
-          ? `${env.paybox.apiUrl} · cap $${env.paybox.maxSpendPerBuildUsd.toFixed(2)}/build`
-          : "needed only to buy from other x402 services; builds do not require it",
     },
   ];
   return rows;
