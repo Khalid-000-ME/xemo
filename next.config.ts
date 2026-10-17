@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // better-sqlite3 and the CreateOS SDK are server-only native/node deps.
-  serverExternalPackages: ["better-sqlite3", "@nodeops-createos/sandbox"],
+  // libSQL ships a native binding for local files; the CreateOS SDK is node-only.
+  serverExternalPackages: ["@libsql/client", "@nodeops-createos/sandbox"],
   outputFileTracingIncludes: {
     // The agent reads template files at runtime to generate apps.
     "/api/agent/**": ["./templates/**/*"],

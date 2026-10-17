@@ -19,6 +19,7 @@
   "dependencies": {
     "@ai-sdk/groq": "4.0.63",
     "@coinbase/x402": "2.1.0",
+    "@libsql/client": "0.18.0",
     "@modelcontextprotocol/sdk": "1.32.1",
     "@nodeops-createos/sandbox": "0.8.2",
     "@x402/core": "2.28.0",
@@ -26,7 +27,6 @@
     "@x402/extensions": "2.28.0",
     "@x402/next": "2.28.0",
     "ai": "7.0.143",
-    "better-sqlite3": "13.0.3",
     "drizzle-orm": "0.45.4",
     "next": "16.4.2",
     "react": "19.3.1",
@@ -37,7 +37,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
-    "@types/better-sqlite3": "7.6.13",
     "@types/node": "24.9.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -48,7 +47,6 @@
   "packageManager": "pnpm@10.0.0",
   "pnpm": {
     "onlyBuiltDependencies": [
-      "better-sqlite3",
       "esbuild",
       "sharp"
     ]
