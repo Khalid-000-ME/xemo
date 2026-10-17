@@ -2,7 +2,7 @@
 
 {{TAGLINE}}
 
-Built and deployed by [AgentFoundry]({{PLATFORM_URL}}) from a single prompt.
+Built and deployed by [Xemo]({{PLATFORM_URL}}) from a single prompt.
 Build id: `{{BUILD_ID}}`.
 
 ## Two ways to buy
@@ -28,5 +28,5 @@ npm start
 ## Design note
 
 This app holds no API keys. Payment capture, model inference and the revenue
-ledger live on AgentFoundry, which acts as merchant of record; this service is
+ledger live on Xemo, which acts as merchant of record; this service is
 the branded storefront and fulfilment surface.

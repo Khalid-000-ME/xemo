@@ -4,5 +4,5 @@ export default {
   schema: "./src/lib/db/schema.ts",
   out: "./drizzle",
   dialect: "sqlite",
-  dbCredentials: { url: process.env.DATABASE_URL ?? "./data/agentfoundry.db" },
+  dbCredentials: { url: process.env.DATABASE_URL ?? "./data/xemo.db" },
 } satisfies Config;

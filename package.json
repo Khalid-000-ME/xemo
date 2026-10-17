@@ -1,8 +1,8 @@
 {
-  "name": "agentfoundry",
+  "name": "xemo",
   "version": "1.0.0",
   "private": true,
-  "description": "AgentFoundry \u2014 an agent that builds, deploys and dual-rail monetizes micro-SaaS. Submitted to PayBox as AppFactory.",
+  "description": "Xemo \u2014 an agent that builds, deploys and dual-rail monetizes micro-SaaS. Submitted to PayBox as Xemo.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

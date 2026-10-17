@@ -44,7 +44,7 @@ try {
   sandbox = await client.createSandbox({
     shape: "s-1vcpu-1gb",
     rootfs: "devbox:1",
-    name: "agentfoundry-e2echeck",
+    name: "xemo-e2echeck",
     ingress_enabled: true,
     egress: ["registry.npmjs.org:443", "*.npmjs.org:443", "api.stripe.com:443", "x402.org:443"],
     envs: { BUILD_ID: "af_e2echeck", PORT: String(PORT) },

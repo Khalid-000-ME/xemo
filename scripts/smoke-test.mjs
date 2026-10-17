@@ -53,7 +53,7 @@ const post = (path, payload, headers = {}) =>
     body: JSON.stringify(payload),
   });
 
-console.log(`\nAgentFoundry smoke test → ${BASE}`);
+console.log(`\nXemo smoke test → ${BASE}`);
 
 // ── Platform reachable ───────────────────────────────────────────────────────
 section("Platform");
@@ -94,7 +94,7 @@ ok("GET /dashboard returns 200", dash.res.status === 200, `got ${dash.res.status
 section("MCP server");
 const init = await post("/api/mcp", { jsonrpc: "2.0", id: 1, method: "initialize", params: {} });
 ok("initialize returns a protocol version", Boolean(init.body?.result?.protocolVersion), JSON.stringify(init.body)?.slice(0, 120));
-ok("initialize names the server", init.body?.result?.serverInfo?.name === "appfactory");
+ok("initialize names the server", init.body?.result?.serverInfo?.name === "xemo");
 
 const toolList = await post("/api/mcp", { jsonrpc: "2.0", id: 2, method: "tools/list" });
 const toolNames = (toolList.body?.result?.tools ?? []).map((t) => t.name);

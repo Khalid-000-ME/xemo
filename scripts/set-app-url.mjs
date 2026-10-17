@@ -5,7 +5,7 @@
  * A quick tunnel hands out a different hostname every restart, and the origin
  * appears in four places that must agree: the advertised x402 resource URL, the
  * sandbox egress allowlist, the callbacks baked into generated apps, and the
- * plugin's APPFACTORY_API_URL in the PayBox portal. This updates the first
+ * plugin's XEMO_API_URL in the PayBox portal. This updates the first
  * three and prints what to change in the fourth.
  *
  *   node scripts/set-app-url.mjs https://something.trycloudflare.com
@@ -66,7 +66,7 @@ console.log("  Next:");
 console.log("    pnpm build && pnpm start");
 console.log(`    BASE=${origin} pnpm smoke\n`);
 console.log("  Then in the PayBox portal (Test & configure):");
-console.log(`    Variables      APPFACTORY_API_URL = ${origin}`);
+console.log(`    Variables      XEMO_API_URL = ${origin}`);
 console.log(`    Network access ${host}\n`);
 console.log("  Apps deployed under the previous origin keep calling it, so their");
 console.log("  checkout will fail. Rebuild anything you plan to demo.\n");

@@ -68,7 +68,7 @@ const pass = (msg) => console.log(`  \u001b[32mok\u001b[0m   ${msg}`);
 
 console.log("\n\u001b[1mTemplate check — templates/analyzer\u001b[0m\n");
 
-const workDir = mkdtempSync(join(tmpdir(), "agentfoundry-template-"));
+const workDir = mkdtempSync(join(tmpdir(), "xemo-template-"));
 mkdirSync(workDir, { recursive: true });
 
 const names = readdirSync(templateDir).sort();
