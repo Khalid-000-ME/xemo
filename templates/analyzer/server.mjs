@@ -27,6 +27,9 @@ const SAMPLE = {{SAMPLE_JSON}};
 
 const started = Date.now();
 
+const originOf = (req) =>
+  `${String(req.headers["x-forwarded-proto"] || "http").split(",")[0]}://${req.headers["x-forwarded-host"] || req.headers.host || "localhost"}`;
+
 const json = (res, status, body, headers = {}) => {
   const payload = JSON.stringify(body, null, 2);
   res.writeHead(status, {
@@ -85,86 +88,175 @@ async function platform(path, init = {}) {
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-function landingPage() {
-  const fieldList = FIELDS.map((f) => `<li><strong>${esc(f.label)}</strong><span>${esc(f.description)}</span></li>`).join("");
-  return `<!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(PRODUCT_NAME)}</title>
-<meta name="description" content="${esc(TAGLINE)}">
-<style>
+const FONTS =
+  "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap";
+
+/** White or near-black, whichever stays readable on the brand colour. */
+const ON_BRAND = (() => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(BRAND);
+  if (!m) return "#ffffff";
+  const n = parseInt(m[1], 16);
+  const lin = (c) => ((c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const l = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return l > 0.5 ? "#0c0c0e" : "#ffffff";
+})();
+
+const FAVICON = `data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="${BRAND}"/><text x="16" y="21.5" font-family="Georgia,serif" font-size="17" text-anchor="middle" fill="${ON_BRAND}">${esc(PRODUCT_NAME.charAt(0).toUpperCase())}</text></svg>`,
+)}`;
+
+const BASE_CSS = `
   :root{
-    --brand:${BRAND};
-    --bg:#ffffff;--fg:#17171a;--muted:#5d5d68;--line:#e5e5ea;--card:#fafafa;--shadow:0 1px 2px rgba(0,0,0,.05);
+    --brand:${BRAND};--on-brand:${ON_BRAND};
+    --bg:#fff;--fg:#0c0c0e;--muted:#6f6f76;--faint:#9a9aa1;--line:#e4e4e7;--card:#f5f5f5;
+    --tint:color-mix(in srgb,var(--brand) 14%,#fff);--tint2:color-mix(in srgb,var(--brand) 30%,#fff);
+    --serif:"Instrument Serif","Times New Roman",serif;
+    --sans:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-    --bg:#101013;--fg:#f3f3f5;--muted:#9c9ca8;--line:#272730;--card:#17171c;--shadow:none;
-  }}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);
-    font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
-  .wrap{max-width:720px;margin:0 auto;padding:56px 16px 80px}
-  .pill{display:inline-block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
-    color:var(--brand);border:1px solid var(--brand);border-radius:999px;padding:4px 10px;margin-bottom:20px}
-  h1{font-size:clamp(28px,6vw,42px);line-height:1.15;margin:0 0 12px;letter-spacing:-.02em}
-  .tagline{font-size:18px;color:var(--muted);margin:0 0 32px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
-  label{display:block;font-weight:600;font-size:14px;margin-bottom:8px}
-  textarea{width:100%;min-height:190px;resize:vertical;padding:12px;border-radius:10px;
-    border:1px solid var(--line);background:var(--bg);color:var(--fg);font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
-  textarea:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:var(--brand)}
-  button{margin-top:14px;width:100%;padding:13px 18px;border:0;border-radius:10px;background:var(--brand);
-    color:#fff;font-size:16px;font-weight:600;cursor:pointer}
-  button:hover{filter:brightness(1.08)} button:disabled{opacity:.55;cursor:progress}
-  .note{font-size:13px;color:var(--muted);margin-top:10px}
-  ul{list-style:none;padding:0;margin:28px 0 0;display:grid;gap:10px}
-  ul li{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--card)}
-  ul li strong{display:block;font-size:14px}
-  ul li span{font-size:13px;color:var(--muted)}
-  .agents{margin-top:36px;border-top:1px solid var(--line);padding-top:24px}
-  .agents h2{font-size:15px;margin:0 0 8px}
-  code{font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--card);
-    border:1px solid var(--line);border-radius:6px;padding:2px 6px;word-break:break-all}
-  pre{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;overflow-x:auto;font-size:13px}
-  footer{margin-top:44px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:18px}
-  footer a{color:var(--brand)}
-  .err{color:#b4232a;font-size:14px;margin-top:10px}
-  @media (prefers-color-scheme:dark){.err{color:#ff8d94}}
-</style></head>
-<body><div class="wrap">
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .nav{max-width:1100px;margin:0 auto;padding:20px 24px;display:flex;align-items:center;gap:24px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:17px;text-decoration:none;letter-spacing:-.01em}
+  .mark{width:28px;height:28px;border-radius:50%;background:var(--brand);color:var(--on-brand);
+    display:grid;place-items:center;font:400 17px/1 var(--serif)}
+  .nav nav{margin-left:auto;display:flex;gap:4px;font-size:14px}
+  .nav nav a{padding:8px 14px;border-radius:999px;color:var(--muted);text-decoration:none}
+  .nav nav a:hover{background:var(--card)}
+  .hero{margin:0 12px;border-radius:32px;padding:88px 24px 96px;text-align:center;position:relative;overflow:hidden;
+    background:radial-gradient(900px 420px at 15% 0%,var(--tint2),transparent 70%),
+      radial-gradient(800px 400px at 90% 100%,var(--tint2),transparent 65%),var(--tint)}
+  .hero.small{padding:56px 24px 60px}
+  .pill{display:inline-block;font:500 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;
+    background:rgba(255,255,255,.7);border-radius:999px;padding:9px 14px;margin-bottom:26px;backdrop-filter:blur(6px)}
+  h1{font:400 clamp(44px,8vw,88px)/1 var(--serif);letter-spacing:-.02em;margin:0 auto;max-width:900px}
+  .tagline{font-size:clamp(16px,2.2vw,19px);color:#2b2b31;max-width:560px;margin:22px auto 0}
+  .btn{display:inline-block;margin-top:34px;padding:14px 26px;border-radius:999px;background:var(--fg);color:#fff;
+    font-weight:500;font-size:15px;text-decoration:none;border:0;cursor:pointer;transition:opacity .15s}
+  .btn:hover{opacity:.86}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+  section.block{padding-top:104px}
+  .split{display:grid;gap:48px;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);align-items:start}
+  @media(max-width:860px){.split{grid-template-columns:1fr;gap:28px}}
+  h2{font:400 clamp(34px,5vw,52px)/1.05 var(--sans);letter-spacing:-.03em;margin:0}
+  .lead{color:var(--muted);max-width:360px;margin:18px 0 0}
+  .card{background:var(--card);border-radius:28px;padding:26px}
+  label{display:block;font-weight:500;font-size:14px;margin-bottom:10px}
+  textarea{width:100%;min-height:210px;resize:vertical;padding:16px;border-radius:20px;border:1px solid transparent;
+    background:#fff;color:var(--fg);font:14px/1.65 var(--mono)}
+  textarea:focus{outline:2px solid color-mix(in srgb,var(--brand) 40%,transparent);outline-offset:1px}
+  .go{margin-top:16px;width:100%;padding:15px 20px;border:0;border-radius:999px;background:var(--brand);color:var(--on-brand);
+    font:500 15px var(--sans);cursor:pointer;transition:opacity .15s}
+  .go:hover{opacity:.9} .go:disabled{opacity:.55;cursor:progress}
+  .note{font-size:13px;color:var(--muted);margin:12px 0 0}
+  .err{background:#fef2f2;color:#b4232a;border-radius:16px;padding:10px 16px;font-size:14px;margin-top:14px}
+  .ok{background:#ecfdf5;color:#047857;border-radius:16px;padding:12px 18px;font-size:14px;margin:0 0 24px}
+  .rows{list-style:none;margin:40px 0 0;padding:0}
+  .rows li{display:grid;grid-template-columns:2.5rem 15rem 1fr;gap:4px 16px;align-items:baseline;padding:22px 0;border-bottom:1px solid var(--line)}
+  .rows li:first-child{padding-top:0}
+  .rows .n{font:12.5px var(--mono);color:var(--faint)}
+  .rows .t{font-size:22px;letter-spacing:-.01em}
+  .rows .d{color:var(--muted);font-size:15px}
+  @media(max-width:700px){.rows li{grid-template-columns:2.5rem 1fr}.rows .d{grid-column:2}}
+  pre{margin:0;overflow-x:auto;font:12.5px/1.7 var(--mono);color:var(--muted)}
+  code{font:12.5px var(--mono);background:var(--card);border-radius:8px;padding:2px 7px;word-break:break-all}
+  footer{max-width:1100px;margin:120px auto 0;padding:28px 24px 56px;border-top:1px solid var(--line);
+    font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+  footer a{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+  .out{display:grid;gap:14px;margin-top:8px}
+  .out h3{font:500 11.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+  .out .score{font:400 72px/1 var(--serif);letter-spacing:-.02em}
+  .out ul{margin:0;padding-left:20px} .out li{margin-bottom:6px}
+  .out p{margin:0}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--brand);
+    border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+`;
+
+const head = (title, description) => `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title><meta name="description" content="${esc(description)}">
+<link rel="icon" href="${FAVICON}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="${FONTS}">
+<style>${BASE_CSS}</style>`;
+
+const nav = (links) => `<header class="nav">
+  <a class="brand" href="/"><span class="mark">${esc(PRODUCT_NAME.charAt(0).toUpperCase())}</span>${esc(PRODUCT_NAME)}</a>
+  <nav>${links}</nav>
+</header>`;
+
+const footer = () => `<footer>
+  <span>Built and deployed from one prompt by <a href="${esc(PLATFORM)}">Xemo</a></span>
+  <span><a href="${esc(PLATFORM)}/build/${esc(BUILD_ID)}">Build ${esc(BUILD_ID)}</a> · <a href="/.well-known/x402">x402 terms</a></span>
+</footer>`;
+
+function landingPage() {
+  const rows = FIELDS.map(
+    (f, i) => `<li><span class="n">${String(i + 1).padStart(2, "0")}</span><span class="t">${esc(f.label)}</span><span class="d">${esc(f.description)}</span></li>`,
+  ).join("");
+  return `<!doctype html>
+<html lang="en"><head>${head(PRODUCT_NAME, TAGLINE)}</head>
+<body>
+${nav('<a href="#try">Try it</a><a href="#includes">What you get</a><a href="#agents">For agents</a>')}
+<section class="hero">
   <span class="pill">${esc(UNIT)} · $${PRICE_USD.toFixed(2)}</span>
   <h1>${esc(PRODUCT_NAME)}</h1>
   <p class="tagline">${esc(TAGLINE)}</p>
+  <a class="btn" href="#try">Get your ${esc(UNIT)}</a>
+</section>
 
-  <div class="card">
-    <label for="input">${esc(INPUT_LABEL)}</label>
-    <textarea id="input" placeholder="Paste here…" aria-describedby="note"></textarea>
-    <button id="go">Continue to payment · $${PRICE_USD.toFixed(2)}</button>
-    <p class="note" id="note">Secure checkout by Stripe. You are charged once, per ${esc(UNIT)}.</p>
-    <p class="err" id="err" hidden></p>
-  </div>
+<div class="wrap">
+  <section class="block split" id="try">
+    <div>
+      <h2>Get your ${esc(UNIT)}</h2>
+      <p class="lead">Paste your input, pay once with Stripe, and the result appears on the next page.</p>
+    </div>
+    <div class="card">
+      <div id="cancelled" class="ok" hidden>Checkout was cancelled. Nothing was charged, and your text is still here.</div>
+      <label for="input">${esc(INPUT_LABEL)}</label>
+      <textarea id="input" placeholder="Paste here…" aria-describedby="note"></textarea>
+      <button class="go" id="go">Continue to payment · $${PRICE_USD.toFixed(2)}</button>
+      <p class="note" id="note">Secure checkout by Stripe. You are charged once, per ${esc(UNIT)}.</p>
+      <p class="err" id="err" hidden></p>
+    </div>
+  </section>
 
-  <ul>${fieldList}</ul>
+  <section class="block split" id="includes">
+    <div>
+      <h2>What you get</h2>
+      <p class="lead">Every ${esc(UNIT)} returns these, structured and ready to use.</p>
+    </div>
+    <ol class="rows">${rows}</ol>
+  </section>
 
-  <div class="agents">
-    <h2>Buying this as an AI agent?</h2>
-    <p class="note">This service also sells over <a href="https://x402.org">x402</a> at
-      $${AGENT_PRICE_USD.toFixed(2)} per call — no account, no checkout page.</p>
-    <pre>curl -X POST ${esc(AGENT_ENDPOINT)} \\
+  <section class="block split" id="agents">
+    <div>
+      <h2>Buying as an AI agent?</h2>
+      <p class="lead">Also sold over <a href="https://x402.org">x402</a> at $${AGENT_PRICE_USD.toFixed(2)} per call. No account and no checkout page.</p>
+    </div>
+    <div class="card">
+      <pre>curl -X POST ${esc(AGENT_ENDPOINT)} \\
   -H 'content-type: application/json' \\
   -d '{"input":"…"}'
+
 # → 402 Payment Required + payment requirements
 # → retry with an X-PAYMENT header to be fulfilled</pre>
-    <p class="note">Machine-readable terms: <code>/.well-known/x402</code></p>
-  </div>
-
-  <footer>Built and deployed from one prompt by
-    <a href="${esc(PLATFORM)}">Xemo</a> · build <code>${esc(BUILD_ID)}</code></footer>
+      <p class="note">Machine-readable terms: <a href="/.well-known/x402"><code>/.well-known/x402</code></a></p>
+    </div>
+  </section>
 </div>
+${footer()}
 <script>
   const btn = document.getElementById('go');
   const input = document.getElementById('input');
   const err = document.getElementById('err');
+  const label = 'Continue to payment · $${PRICE_USD.toFixed(2)}';
+  if (new URLSearchParams(location.search).has('cancelled')) {
+    document.getElementById('cancelled').hidden = false;
+    document.getElementById('try').scrollIntoView();
+  }
   btn.addEventListener('click', async () => {
     const text = input.value.trim();
     err.hidden = true;
@@ -180,7 +272,7 @@ function landingPage() {
       window.location.href = body.checkoutUrl;
     } catch (e) {
       err.textContent = e.message; err.hidden = false;
-      btn.disabled = false; btn.textContent = 'Continue to payment · $${PRICE_USD.toFixed(2)}';
+      btn.disabled = false; btn.textContent = label;
     }
   });
 </script>
@@ -189,51 +281,34 @@ function landingPage() {
 
 function resultPage(orderId) {
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Your ${esc(UNIT)} — ${esc(PRODUCT_NAME)}</title>
-<style>
-  :root{--brand:${BRAND};--bg:#fff;--fg:#17171a;--muted:#5d5d68;--line:#e5e5ea;--card:#fafafa}
-  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-    --bg:#101013;--fg:#f3f3f5;--muted:#9c9ca8;--line:#272730;--card:#17171c}}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 ui-sans-serif,system-ui,-apple-system,sans-serif}
-  .wrap{max-width:720px;margin:0 auto;padding:48px 16px 80px}
-  h1{font-size:28px;margin:0 0 6px;letter-spacing:-.02em}
-  .muted{color:var(--muted);font-size:14px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:20px}
-  h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--brand);margin:0 0 10px}
-  ul{margin:0;padding-left:20px} li{margin-bottom:6px}
-  .score{font-size:44px;font-weight:700;letter-spacing:-.03em}
-  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);
-    border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
-  @keyframes s{to{transform:rotate(360deg)}}
-  a{color:var(--brand)}
-</style></head>
-<body><div class="wrap">
-  <h1>${esc(PRODUCT_NAME)}</h1>
-  <p class="muted">Order <code>${esc(orderId)}</code></p>
-  <div id="out"><p class="muted"><span class="spin"></span> Confirming payment and preparing your ${esc(UNIT)}…</p></div>
-  <p class="muted" style="margin-top:32px"><a href="/">← Start another</a></p>
+<html lang="en"><head>${head(`Your ${UNIT} · ${PRODUCT_NAME}`, TAGLINE)}</head>
+<body>
+${nav('<a href="/">New ' + esc(UNIT) + '</a>')}
+<section class="hero small">
+  <span class="pill">Order ${esc(orderId)}</span>
+  <h1>Your ${esc(UNIT)}</h1>
+</section>
+<div class="wrap" style="padding-top:48px;max-width:780px">
+  <div id="out" class="out"><div class="card"><span class="spin"></span>&nbsp; Confirming payment and preparing your ${esc(UNIT)}…</div></div>
+  <p><a class="btn" href="/">Start another</a></p>
 </div>
+${footer()}
 <script>
 const out = document.getElementById('out');
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const note = (html) => { out.innerHTML = '<div class="card">' + html + '</div>'; };
 function render(result) {
   const blocks = [];
   for (const [key, value] of Object.entries(result)) {
     const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
-    if (typeof value === 'number') {
-      blocks.push('<div class="card"><h2>' + esc(label) + '</h2><div class="score">' + esc(value) + '</div></div>');
-    } else if (Array.isArray(value)) {
-      blocks.push('<div class="card"><h2>' + esc(label) + '</h2><ul>' +
-        value.map(v => '<li>' + esc(typeof v === 'string' ? v : JSON.stringify(v)) + '</li>').join('') + '</ul></div>');
-    } else if (value && typeof value === 'object') {
-      blocks.push('<div class="card"><h2>' + esc(label) + '</h2><pre>' + esc(JSON.stringify(value, null, 2)) + '</pre></div>');
-    } else if (value != null && String(value).length) {
-      blocks.push('<div class="card"><h2>' + esc(label) + '</h2><p>' + esc(value) + '</p></div>');
-    }
+    let body = '';
+    if (typeof value === 'number') body = '<div class="score">' + esc(value) + '</div>';
+    else if (Array.isArray(value)) body = '<ul>' + value.map(v => '<li>' + esc(typeof v === 'string' ? v : JSON.stringify(v)) + '</li>').join('') + '</ul>';
+    else if (value && typeof value === 'object') body = '<pre>' + esc(JSON.stringify(value, null, 2)) + '</pre>';
+    else if (value != null && String(value).length) body = '<p>' + esc(value) + '</p>';
+    if (body) blocks.push('<div class="card"><h3>' + esc(label) + '</h3>' + body + '</div>');
   }
-  out.innerHTML = blocks.join('') || '<p class="muted">No output was produced.</p>';
+  out.innerHTML = blocks.join('') || '<div class="card">No output was produced.</div>';
 }
 let tries = 0;
 async function poll() {
@@ -242,13 +317,11 @@ async function poll() {
     const res = await fetch('/api/order/' + encodeURIComponent(${JSON.stringify(orderId)}));
     const body = await res.json();
     if (body.status === 'complete' && body.result) return render(body.result);
-    if (body.status === 'failed') { out.innerHTML = '<p class="muted">This order could not be completed. No charge was captured.</p>'; return; }
-    if (body.status === 'created') {
-      out.innerHTML = '<p class="muted">Waiting for payment confirmation from Stripe… <span class="spin"></span></p>';
-    }
+    if (body.status === 'failed') return note('This order could not be completed. No charge was captured.');
+    if (body.status === 'created') note('<span class="spin"></span>&nbsp; Waiting for payment confirmation from Stripe…');
   } catch (e) { /* keep polling */ }
   if (tries < 100) setTimeout(poll, 2000);
-  else out.innerHTML = '<p class="muted">Still working. Reload this page in a moment.</p>';
+  else note('Still working. Reload this page in a moment.');
 }
 poll();
 </script>
@@ -285,7 +358,7 @@ const server = createServer(async (req, res) => {
         priceUsd: AGENT_PRICE_USD,
         input: { type: "http", bodyType: "json", body: { input: "string" } },
         output: { type: "application/json", example: SAMPLE },
-        humanCheckout: { priceUsd: PRICE_USD, url: `${PLATFORM}/api/stripe/checkout?buildId=${BUILD_ID}` },
+        humanCheckout: { priceUsd: PRICE_USD, url: `${originOf(req)}/#try` },
       });
     }
 
