@@ -31,28 +31,6 @@ export type EmittedEvent = {
   createdAt: number;
 };
 
-type Listener = (event: EmittedEvent) => void;
-
-/**
- * In-process fan-out so the build page streams without polling the database.
- * Single-process by design: the orchestrator and the SSE route share a runtime.
- * Events are always persisted first, so a reconnect replays from the database
- * and nothing is lost if a listener was not attached yet.
- */
-const globalForBus = globalThis as unknown as { __afBus?: Map<string, Set<Listener>> };
-const bus: Map<string, Set<Listener>> = globalForBus.__afBus ?? new Map();
-globalForBus.__afBus = bus;
-
-export function subscribe(buildId: string, listener: Listener): () => void {
-  const set = bus.get(buildId) ?? new Set<Listener>();
-  set.add(listener);
-  bus.set(buildId, set);
-  return () => {
-    set.delete(listener);
-    if (set.size === 0) bus.delete(buildId);
-  };
-}
-
 export async function recordEvent(
   buildId: string,
   type: BuildEventType,
@@ -75,17 +53,12 @@ export async function recordEvent(
     metadata: metadata ?? null,
   };
 
+  // The database is the only channel: the invocation that runs a build and the
+  // one that streams its timeline are different instances on a serverless
+  // platform, so anything held in memory would never reach the reader.
   await db.insert(buildEvents).values(row);
 
-  const emitted: EmittedEvent = { ...row, createdAt: Date.now() };
-  for (const listener of bus.get(buildId) ?? []) {
-    try {
-      listener(emitted);
-    } catch {
-      // A broken listener must never fail the build.
-    }
-  }
-  return emitted;
+  return { ...row, createdAt: Date.now() };
 }
 
 export async function listEvents(buildId: string, afterSeq = 0): Promise<EmittedEvent[]> {

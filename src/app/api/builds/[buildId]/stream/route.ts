@@ -1,79 +1,115 @@
-import { listEvents, subscribe, type EmittedEvent } from "@/lib/events";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { builds } from "@/lib/db/schema";
+import { listEvents, type EmittedEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
+
+const POLL_MS = 1000;
+const TERMINAL = new Set(["live", "failed"]);
 
 /**
  * Server-sent events for one build's timeline.
  *
- * Replays everything after `?after=` before attaching the live listener, so a
- * reconnecting client never has a gap and never sees a duplicate.
+ * This polls the database instead of subscribing to an in-process bus. On a
+ * serverless platform the invocation running the build and the invocation
+ * streaming it are different instances, so an in-memory fan-out would never see
+ * the build's events. Events are persisted before anything else happens, which
+ * makes the database the one source every instance agrees on.
+ *
+ * `?after=N` resumes from a sequence number, so a reconnect has no gap and no
+ * duplicate.
  */
 export async function GET(req: Request, ctx: { params: Promise<{ buildId: string }> }) {
   const { buildId } = await ctx.params;
   const after = Number(new URL(req.url).searchParams.get("after") ?? 0) || 0;
 
   const encoder = new TextEncoder();
-  let unsubscribe: (() => void) | undefined;
-  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  let stopped = false;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let highWater = after;
-      let closed = false;
 
-      const send = (event: EmittedEvent) => {
-        if (closed || event.seq <= highWater) return;
-        highWater = event.seq;
+      const write = (chunk: string) => {
         try {
-          controller.enqueue(encoder.encode(`id: ${event.seq}\nevent: build\ndata: ${JSON.stringify(event)}\n\n`));
+          controller.enqueue(encoder.encode(chunk));
         } catch {
-          closed = true;
-        }
-        if (event.type === "done" || (event.type === "error" && event.title === "Build failed")) {
-          finish();
+          stopped = true;
         }
       };
 
       const finish = () => {
-        if (closed) return;
-        closed = true;
-        unsubscribe?.();
-        if (heartbeat) clearInterval(heartbeat);
+        if (stopped) return;
+        stopped = true;
+        write("event: end\ndata: {}\n\n");
         try {
-          controller.enqueue(encoder.encode("event: end\ndata: {}\n\n"));
           controller.close();
         } catch {
-          // already torn down
+          // already closed
         }
       };
 
-      // Attach first, then replay, so an event fired mid-replay is not lost.
-      const buffered: EmittedEvent[] = [];
-      let replaying = true;
-      unsubscribe = subscribe(buildId, (event) => {
-        if (replaying) buffered.push(event);
-        else send(event);
+      req.signal.addEventListener("abort", () => {
+        stopped = true;
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
       });
 
-      for (const event of await listEvents(buildId, after)) send(event);
-      replaying = false;
-      for (const event of buffered) send(event);
+      let idleBeats = 0;
 
-      heartbeat = setInterval(() => {
-        if (closed) return;
+      while (!stopped) {
+        let events: EmittedEvent[];
         try {
-          controller.enqueue(encoder.encode(": keep-alive\n\n"));
+          events = await listEvents(buildId, highWater);
         } catch {
-          finish();
+          // A transient database error should not tear down the stream.
+          events = [];
         }
-      }, 15_000);
 
-      req.signal.addEventListener("abort", finish);
+        for (const event of events) {
+          highWater = event.seq;
+          write(`id: ${event.seq}\nevent: build\ndata: ${JSON.stringify(event)}\n\n`);
+        }
+
+        if (events.length > 0) {
+          idleBeats = 0;
+        } else if (++idleBeats % 15 === 0) {
+          write(": keep-alive\n\n");
+        }
+
+        // Stop once the build is terminal and everything it wrote has been sent.
+        // Checking status after the events, not before, means a final event that
+        // landed between the two reads is never dropped.
+        if (events.length === 0) {
+          const [row] = await db
+            .select({ status: builds.status })
+            .from(builds)
+            .where(eq(builds.id, buildId))
+            .limit(1)
+            .catch(() => []);
+
+          if (!row) return finish(); // unknown build
+          if (TERMINAL.has(row.status)) {
+            const rest = await listEvents(buildId, highWater).catch(() => []);
+            for (const event of rest) {
+              highWater = event.seq;
+              write(`id: ${event.seq}\nevent: build\ndata: ${JSON.stringify(event)}\n\n`);
+            }
+            return finish();
+          }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+      }
     },
     cancel() {
-      unsubscribe?.();
-      if (heartbeat) clearInterval(heartbeat);
+      stopped = true;
     },
   });
 
