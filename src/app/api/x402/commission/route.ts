@@ -43,6 +43,12 @@ const discovery = declareDiscoveryExtension({
         maximum: env.limits.maxPriceUsd,
         description: "What a human buyer pays per unit in the generated app.",
       },
+      wait: {
+        type: "boolean",
+        description:
+          "Wait for the build to finish and return the live app (default). Set false to receive the " +
+          "buildId as soon as the job is accepted, then poll /api/builds/{buildId}.",
+      },
     },
     additionalProperties: false,
   },
@@ -62,13 +68,14 @@ const discovery = declareDiscoveryExtension({
       required: ["buildId", "status"],
       properties: {
         buildId: { type: "string" },
-        status: { type: "string", enum: ["live", "failed"] },
+        status: { type: "string", enum: ["live", "building", "failed"] },
         productName: { type: "string" },
         appUrl: { type: "string" },
         agentEndpoint: { type: "string" },
         humanPriceUsd: { type: "number" },
         agentPriceUsd: { type: "number" },
         buildSeconds: { type: "number" },
+        pollUrl: { type: "string" },
       },
     },
   },
@@ -95,6 +102,28 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         ? { commission: { amountUsd: PRICE, externalId: `x402:${hash(paymentId)}`, provider: "x402" as const } }
         : {}),
     });
+
+    // A caller on a short request budget — PayBox's hosted runtime, for one —
+    // asks not to wait. Every cheap check (request shape, configured rails) has
+    // already run and thrown, so accepting the job here is not accepting one we
+    // know will fail.
+    if (body.wait === false) {
+      void done.catch(() => {});
+      return NextResponse.json(
+        {
+          buildId,
+          status: "building",
+          appUrl: null,
+          agentEndpoint: `${env.appUrl}/api/x402/apps/${buildId}`,
+          pollUrl: `${env.appUrl}/api/builds/${buildId}`,
+          timelineUrl: `${env.appUrl}/build/${buildId}`,
+          humanPriceUsd: body.priceUsd === undefined ? 5 : numOr(body.priceUsd, 5),
+          agentPriceUsd: env.x402.generatedAppPriceUsd,
+          note: "Build accepted. Poll pollUrl until status is live or failed; it usually takes under a minute.",
+        },
+        { status: 200 },
+      );
+    }
 
     const outcome = await done;
 
