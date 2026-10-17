@@ -3,7 +3,7 @@ import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { builds } from "@/lib/db/schema";
 import { economics, platformStats, recentLedger } from "@/lib/ledger";
-import { capabilities } from "@/lib/env";
+import { readiness } from "@/lib/env";
 import { Badge, Card, Empty, Label, Stat, usd } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -11,12 +11,12 @@ export const dynamic = "force-dynamic";
 const RAIL_LABEL: Record<string, string> = {
   human: "Human · Stripe",
   agent: "Agent · x402",
-  supplier: "Supplier",
+  supplier: "Supplier · inference",
   compute: "Compute",
 };
 
 export default async function Dashboard() {
-  const [econ, stats, rows, allBuilds, caps] = await Promise.all([
+  const [econ, stats, rows, allBuilds, rails] = await Promise.all([
     economics(),
     platformStats(),
     recentLedger(25),
@@ -27,17 +27,16 @@ export default async function Dashboard() {
         status: builds.status,
         origin: builds.origin,
         appUrl: builds.appUrl,
-        simulated: builds.simulated,
         humanPriceUsd: builds.humanPriceUsd,
         agentPriceUsd: builds.agentPriceUsd,
       })
       .from(builds)
       .orderBy(desc(builds.createdAt))
       .limit(12),
-    Promise.resolve(capabilities()),
+    Promise.resolve(readiness()),
   ]);
 
-  const unlive = caps.filter((c) => !c.live);
+  const notReady = rails.filter((r) => !r.ready);
   // Revenue bar proportions; guarded so an empty ledger renders a flat bar.
   const revenueTotal = Math.max(econ.revenueUsd, 0.000001);
   const humanShare = (econ.humanRevenueUsd / revenueTotal) * 100;
@@ -52,18 +51,21 @@ export default async function Dashboard() {
         </p>
       </header>
 
-      {unlive.length > 0 ? (
+      {notReady.length > 0 ? (
         <div
           className="rounded-xl border px-4 py-3 text-[13px] leading-relaxed"
           style={{ background: "var(--bg-subtle)", borderColor: "var(--line-strong)" }}
         >
-          <strong className="font-semibold" style={{ color: "var(--warn)" }}>
-            {unlive.length} rail{unlive.length === 1 ? "" : "s"} not configured.
+          <strong
+            className="font-semibold"
+            style={{ color: notReady.some((r) => r.blocking) ? "var(--neg)" : "var(--warn)" }}
+          >
+            {notReady.length} rail{notReady.length === 1 ? "" : "s"} not configured
+            {notReady.some((r) => r.blocking) ? " — builds will refuse to start" : ""}.
           </strong>{" "}
           <span style={{ color: "var(--fg-muted)" }}>
-            Figures below include simulated amounts, marked{" "}
-            <span style={{ color: "var(--warn)" }}>unsettled</span>. Missing:{" "}
-            {unlive.map((c) => c.label).join(", ")}.
+            Set {notReady.flatMap((r) => r.missing).join(", ")} in <code>.env.local</code>. Every figure below
+            is a settled amount; there is no simulated mode.
           </span>
         </div>
       ) : null}
@@ -117,9 +119,6 @@ export default async function Dashboard() {
               <span aria-hidden className="size-2.5 rounded-sm" style={{ background: "var(--pos)" }} />
               Agents {usd(econ.agentRevenueUsd)} ({(100 - humanShare).toFixed(0)}%)
             </span>
-            {econ.unsettledUsd > 0 ? (
-              <span style={{ color: "var(--warn)" }}>{usd(econ.unsettledUsd)} unsettled</span>
-            ) : null}
           </div>
         </Card>
       ) : null}
@@ -144,11 +143,6 @@ export default async function Dashboard() {
                       style={{ background: "var(--pos-soft)", color: "var(--pos)" }}
                     >
                       via {build.origin}
-                    </span>
-                  ) : null}
-                  {build.simulated ? (
-                    <span className="text-[12px]" style={{ color: "var(--warn)" }}>
-                      simulated
                     </span>
                   ) : null}
                   <span className="tnum ml-auto text-[12.5px]" style={{ color: "var(--fg-muted)" }}>
@@ -187,14 +181,7 @@ export default async function Dashboard() {
                           : "—"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">{RAIL_LABEL[row.rail] ?? row.rail}</td>
-                      <td className="px-3 py-2">
-                        {row.purpose.replace(/_/g, " ")}
-                        {!row.settled ? (
-                          <span className="ml-2 text-[11.5px]" style={{ color: "var(--warn)" }}>
-                            unsettled
-                          </span>
-                        ) : null}
-                      </td>
+                      <td className="px-3 py-2">{row.purpose.replace(/_/g, " ")}</td>
                       <td
                         className="tnum whitespace-nowrap px-3 py-2 text-right font-medium"
                         style={{ color: inflow ? "var(--pos)" : "var(--neg)" }}

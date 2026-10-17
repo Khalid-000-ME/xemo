@@ -2,26 +2,25 @@ import Link from "next/link";
 import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { builds } from "@/lib/db/schema";
-import { capabilities, env } from "@/lib/env";
+import { env, readiness } from "@/lib/env";
 import { PromptForm } from "@/components/PromptForm";
 import { Badge, Card, Label, Mono } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [recent, caps] = await Promise.all([
+  const [recent, rails] = await Promise.all([
     db
       .select({
         id: builds.id,
         productName: builds.productName,
         status: builds.status,
         appUrl: builds.appUrl,
-        simulated: builds.simulated,
       })
       .from(builds)
       .orderBy(desc(builds.createdAt))
       .limit(5),
-    Promise.resolve(capabilities()),
+    Promise.resolve(readiness()),
   ]);
 
   return (
@@ -47,20 +46,28 @@ export default async function Home() {
 
         <div className="space-y-6">
           <Card>
-            <Label>Live rails</Label>
+            <Label>Rails</Label>
             <ul className="mt-2 space-y-2.5">
-              {caps.map((cap) => (
-                <li key={cap.id} className="flex items-start gap-2.5 text-[13px]">
+              {rails.map((rail) => (
+                <li key={rail.id} className="flex items-start gap-2.5 text-[13px]">
                   <span
                     aria-hidden
                     className="mt-[6px] size-2 shrink-0 rounded-full"
-                    style={{ background: cap.live ? "var(--pos)" : "var(--line-strong)" }}
+                    style={{
+                      background: rail.ready
+                        ? "var(--pos)"
+                        : rail.blocking
+                          ? "var(--neg)"
+                          : "var(--line-strong)",
+                    }}
                   />
                   <span>
-                    <span className="font-medium">{cap.label}</span>
-                    <span className="sr-only">{cap.live ? " — live" : " — not configured"}</span>
+                    <span className="font-medium">{rail.label}</span>
+                    <span className="sr-only">
+                      {rail.ready ? " — ready" : rail.blocking ? " — missing, required" : " — missing, optional"}
+                    </span>
                     <span className="block leading-snug" style={{ color: "var(--fg-muted)" }}>
-                      {cap.detail}
+                      {rail.ready ? rail.detail : `${rail.missing.join(", ")} — ${rail.detail}`}
                     </span>
                   </span>
                 </li>
@@ -107,11 +114,6 @@ export default async function Home() {
                 >
                   <span className="font-medium">{build.productName}</span>
                   <Badge status={build.status}>{build.status}</Badge>
-                  {build.simulated ? (
-                    <span className="text-[12px]" style={{ color: "var(--warn)" }}>
-                      simulated
-                    </span>
-                  ) : null}
                   <span className="ml-auto font-mono text-[12px]" style={{ color: "var(--fg-faint)" }}>
                     {build.id}
                   </span>

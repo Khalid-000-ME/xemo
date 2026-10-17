@@ -43,9 +43,6 @@ export default async function BuildPage({ params }: { params: Promise<{ buildId:
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-[30px] font-semibold tracking-[-0.022em]">{build.productName}</h1>
           <Badge status={build.status}>{build.status}</Badge>
-          {build.simulated ? (
-            <Badge>simulated — no CreateOS microVM</Badge>
-          ) : null}
         </div>
         {spec.success ? (
           <p className="max-w-2xl text-[15px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
