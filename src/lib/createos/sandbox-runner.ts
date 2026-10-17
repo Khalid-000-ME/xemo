@@ -3,23 +3,63 @@ import { env } from "@/lib/env";
 import { APP_DIR, APP_PORT, HEALTH_PATH, type ExecOutcome, type Runner } from "./runner";
 
 /**
- * Hosts the generated app needs to reach from inside the sandbox.
+ * Hosts the generated app may reach from inside the sandbox.
  *
  * Egress is deny-by-default once any rule is present, which is exactly what we
- * want for model-generated code: the app can install from npm, settle x402 and
- * talk to Stripe, and nothing else.
+ * want for model-generated code. The list is built per build because the most
+ * important entry is the platform's own host: a generated app holds no keys and
+ * calls back here for checkout and fulfilment, so without it the storefront
+ * cannot take an order.
  */
-const EGRESS_ALLOWLIST = [
-  "registry.npmjs.org:443",
-  "*.npmjs.org:443",
-  "api.stripe.com:443",
-  "checkout.stripe.com:443",
-  "x402.org:443",
-  "*.x402.org:443",
-  "api.cdp.coinbase.com:443",
-  "api.paybox.sh:443",
-  "api.anthropic.com:443",
-];
+function egressAllowlist(): string[] {
+  const rules = [
+    "registry.npmjs.org:443",
+    "*.npmjs.org:443",
+    "api.stripe.com:443",
+    "checkout.stripe.com:443",
+  ];
+
+  try {
+    const platform = new URL(env.appUrl);
+    const port = platform.port || (platform.protocol === "https:" ? "443" : "80");
+    // A sandbox cannot reach the operator's loopback interface. Allowing it
+    // would be meaningless, and the build log should say so instead.
+    if (!/^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(platform.hostname)) {
+      rules.push(`${platform.hostname}:${port}`);
+    }
+  } catch {
+    // An unparseable app URL is reported by readiness(), not here.
+  }
+
+  return rules;
+}
+
+/** True when generated apps will not be able to call the platform back. */
+export function platformReachableFromSandbox(): boolean {
+  try {
+    return !/^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(new URL(env.appUrl).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * CreateOS caps a sandbox name at 22 characters, which leaves no room for a
+ * descriptive prefix beside a build id. Build ids already begin with `af_`, so
+ * the id itself — with the underscore swapped for a hyphen — both fits and
+ * identifies the sandboxes this platform owns.
+ */
+const NAME_PREFIX = "af-";
+const NAME_MAX = 22;
+
+export function sandboxName(buildId: string): string {
+  const name = buildId.replace(/_/g, "-").toLowerCase().slice(0, NAME_MAX);
+  if (!name.startsWith(NAME_PREFIX)) {
+    // Never return a name capacity reclaim would not recognise as ours.
+    return `${NAME_PREFIX}${name}`.slice(0, NAME_MAX);
+  }
+  return name;
+}
 
 let cached: CreateosSandboxClient | undefined;
 
@@ -41,37 +81,81 @@ export async function createosReachable(): Promise<{ ok: boolean; detail: string
   }
 }
 
+/** A sandbox in any of these states no longer occupies a concurrency slot. */
+const TERMINAL = new Set(["destroyed", "failed"]);
+
+function occupiesSlot(status: string): boolean {
+  return !TERMINAL.has(status);
+}
+
 /**
- * The Free plan allows a single concurrent sandbox and every non-destroyed box
- * counts against the cap, so a create over the limit fails with 429 instead of
- * queueing. Destroy the oldest AgentFoundry-owned sandboxes until there is room.
+ * The Free plan allows a single concurrent sandbox, and every sandbox that is
+ * not destroyed or failed counts — paused ones included. A create over the cap
+ * fails with 429 rather than queueing, so room has to be made first.
+ *
+ * Destroying is not instantaneous: a sandbox passes through `destroying` while
+ * still holding its slot. Reclaim therefore destroys and then *waits* for the
+ * count to actually fall, instead of racing the control plane.
  */
-async function reclaimCapacity(client: CreateosSandboxClient, keep: number): Promise<string[]> {
-  const reclaimed: string[] = [];
-  let boxes: Sandbox[];
+async function reclaimCapacity(
+  client: CreateosSandboxClient,
+  cap: number,
+  onNote?: (note: string) => void,
+): Promise<void> {
+  const deadline = Date.now() + 90_000;
+
+  const occupied = async () => {
+    const boxes = await client.listSandboxes();
+    return boxes.filter((b) => occupiesSlot(b.status));
+  };
+
+  let current: Awaited<ReturnType<typeof occupied>>;
   try {
-    boxes = await client.listSandboxes();
+    current = await occupied();
   } catch {
-    return reclaimed;
+    return; // If we cannot list, let create surface the real error.
   }
 
-  const ours = boxes
-    .filter((b) => (b.name ?? "").startsWith("agentfoundry-"))
-    .filter((b) => b.status !== "destroyed" && b.status !== "failed");
+  if (current.length < cap) return;
 
-  const overBy = ours.length - (keep - 1);
-  if (overBy <= 0) return reclaimed;
+  // Only ever reclaim sandboxes this platform created.
+  const ours = current.filter(
+    (b) => (b.name ?? "").startsWith(NAME_PREFIX) && b.status !== "destroying",
+  );
+  const needed = current.length - cap + 1;
 
-  // Oldest first: ids embed creation time, and list order is stable enough.
-  for (const box of ours.slice(0, overBy)) {
+  if (ours.length === 0) {
+    onNote?.(
+      `at the CreateOS concurrency cap (${current.length}/${cap}) and none of the running sandboxes ` +
+        `belong to AgentFoundry, so none can be reclaimed`,
+    );
+    return;
+  }
+
+  let destroyed = 0;
+  for (const box of ours.slice(0, needed)) {
     try {
       await box.destroy();
-      reclaimed.push(box.id);
+      destroyed++;
     } catch {
-      // Best effort — if we cannot reclaim, create will surface the 429.
+      // Best effort; the wait below decides whether it worked.
     }
   }
-  return reclaimed;
+  if (destroyed > 0) onNote?.(`reclaiming ${destroyed} sandbox slot(s) to stay inside the plan cap`);
+
+  // Wait for the slot to actually free: destroy returns before the control
+  // plane has released it.
+  while (Date.now() < deadline) {
+    try {
+      const after = await occupied();
+      if (after.length < cap) return;
+    } catch {
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+
+  onNote?.(`still at the concurrency cap after waiting; the next create may fail with 429`);
 }
 
 export class SandboxRunner implements Runner {
@@ -93,17 +177,14 @@ export class SandboxRunner implements Runner {
   ): Promise<SandboxRunner> {
     const client = createosClient();
 
-    const reclaimed = await reclaimCapacity(client, env.createos.maxConcurrent);
-    if (reclaimed.length > 0) {
-      onNote?.(`reclaimed ${reclaimed.length} sandbox slot(s) to stay inside the plan cap`);
-    }
+    await reclaimCapacity(client, env.createos.maxConcurrent, onNote);
 
     const sandbox = await client.createSandbox({
       shape: env.createos.shape,
       rootfs: env.createos.rootfs,
-      name: `agentfoundry-${buildId}`,
+      name: sandboxName(buildId),
       ingress_enabled: true,
-      egress: EGRESS_ALLOWLIST,
+      egress: egressAllowlist(),
       envs,
       auto_pause_after_seconds: env.createos.autoPauseAfterSeconds,
       ...(env.createos.region ? { region: env.createos.region } : {}),
@@ -171,14 +252,18 @@ export class SandboxRunner implements Runner {
   }
 
   /**
-   * A deployed app has to stay reachable after the build finishes, so the
-   * default is to pause rather than destroy: paused sandboxes keep their disk
-   * and wake automatically on the next request to their ingress URL.
+   * A published app has to answer the moment the build reports it live, so a
+   * successful build leaves the sandbox *running* rather than pausing it.
+   *
+   * Pausing here was wrong: a resume from snapshot takes long enough that the
+   * first visitor — which during a demo is the person watching — gets
+   * "Sandbox is waking up" on a URL just announced as live. Idle cleanup is
+   * `auto_pause_after_seconds` instead, which only fires once traffic stops.
    */
   async dispose(opts?: { keepAlive?: boolean }): Promise<void> {
+    if (opts?.keepAlive) return;
     try {
-      if (opts?.keepAlive) await this.sandbox.pause();
-      else await this.sandbox.destroy();
+      await this.sandbox.destroy();
     } catch {
       // Teardown must not fail a build that otherwise succeeded.
     }
