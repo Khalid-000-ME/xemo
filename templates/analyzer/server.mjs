@@ -260,7 +260,10 @@ const server = createServer(async (req, res) => {
   const path = url.pathname.replace(/\/+$/, "") || "/";
 
   try {
-    if (req.method === "GET" && path === "/healthz") {
+    // Not /healthz: the CreateOS ingress reserves that path and answers it
+    // itself, so a probe there proves the ingress is up and says nothing about
+    // this process.
+    if (req.method === "GET" && path === "/_af/health") {
       return json(res, 200, {
         ok: true,
         product: PRODUCT_NAME,

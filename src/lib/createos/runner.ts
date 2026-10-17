@@ -34,3 +34,12 @@ export interface Runner {
 
 export const APP_DIR = "/root/app";
 export const APP_PORT = 8080;
+
+/**
+ * The generated app's own health path.
+ *
+ * Deliberately not `/healthz`: the CreateOS ingress reserves that path and
+ * answers it itself, so a probe there confirms the ingress is routing and says
+ * nothing about whether the app process is alive.
+ */
+export const HEALTH_PATH = "/_af/health";

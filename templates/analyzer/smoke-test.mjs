@@ -29,7 +29,7 @@ async function waitForBoot(timeoutMs = 20_000) {
   let last = "no attempt";
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(`${BASE}/healthz`, { signal: AbortSignal.timeout(1500) });
+      const res = await fetch(`${BASE}/_af/health`, { signal: AbortSignal.timeout(1500) });
       if (res.ok) return true;
       last = `status ${res.status}`;
     } catch (err) {
@@ -52,9 +52,9 @@ try {
   console.log(`\n{{PRODUCT_NAME}} — smoke test\n`);
   await waitForBoot();
 
-  const health = await fetch(`${BASE}/healthz`);
+  const health = await fetch(`${BASE}/_af/health`);
   const healthBody = await health.json();
-  check("GET /healthz returns 200", health.status === 200, `got ${health.status}`);
+  check("GET /_af/health returns 200", health.status === 200, `got ${health.status}`);
   check("health payload names the build", healthBody.buildId === "{{BUILD_ID}}", `got ${healthBody.buildId}`);
 
   const home = await fetch(`${BASE}/`);
