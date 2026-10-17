@@ -6,7 +6,13 @@ import { db } from "@/lib/db";
 import { builds } from "@/lib/db/schema";
 import { fulfil } from "@/lib/agent/fulfil";
 import { post } from "@/lib/ledger";
-import { accepts, resourceServer, x402Configured } from "@/lib/x402/server";
+import {
+  accepts,
+  facilitatorLabel,
+  facilitatorSupport,
+  resourceServer,
+  x402Configured,
+} from "@/lib/x402/server";
 import { env } from "@/lib/env";
 import { fail, readJson, str } from "@/lib/http";
 
@@ -34,7 +40,17 @@ const discovery = declareDiscoveryExtension({
     },
     additionalProperties: false,
   },
+  // `pathParams` without `pathParamsSchema` emits a field the declared schema
+  // does not allow, and the route is rejected as an invalid bazaar extension.
   pathParams: { buildId: "af_abc123" },
+  pathParamsSchema: {
+    type: "object",
+    properties: {
+      buildId: { type: "string", description: "The id of the app to call." },
+    },
+    required: ["buildId"],
+    additionalProperties: false,
+  },
   output: {
     example: { buildId: "af_abc123", productName: "ResumeForge", result: { overallScore: 78 } },
     schema: {
@@ -101,7 +117,22 @@ function hash(value: string): string {
   return (h >>> 0).toString(36);
 }
 
-export const POST = x402Configured()
+/**
+ * A paid endpoint must never hang. If the facilitator cannot settle on the
+ * configured network, say so immediately and precisely — a 503 here is also
+ * what stops an agent being charged for a resource we cannot honour.
+ */
+async function guardFacilitator(): Promise<Response | null> {
+  const support = await facilitatorSupport();
+  if (support.ok) return null;
+  return fail(503, "FACILITATOR_UNSUPPORTED", support.message, {
+    network: env.x402.network,
+    facilitator: facilitatorLabel(),
+    ...(support.networks ? { facilitatorSupports: support.networks } : {}),
+  });
+}
+
+const paidRoute = x402Configured()
   ? withX402(
       handler,
       {
@@ -116,5 +147,19 @@ export const POST = x402Configured()
         },
       },
       resourceServer(),
+      undefined,
+      undefined,
+      // Do NOT sync with the facilitator at startup. When the configured
+      // network is unsupported, that sync throws RouteConfigurationError and
+      // takes the whole server down — a payments misconfiguration should
+      // degrade one endpoint, not the platform. `guardFacilitator` reports the
+      // same problem as a precise 503 on this route alone.
+      false,
     )
   : async () => fail(503, "X402_NOT_CONFIGURED", "X402_PAY_TO is not set, so the agent rail cannot be sold.");
+
+export async function POST(request: NextRequest) {
+  const blocked = await guardFacilitator();
+  if (blocked) return blocked;
+  return paidRoute(request);
+}
