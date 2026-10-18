@@ -137,22 +137,28 @@ So PayBox requires **no credential on this side at all**. Being a correct x402 r
 server is the whole integration, which is exactly what PayBox's "wrap your endpoint"
 promise means.
 
-## Storage: SQLite with DDL at boot
+## Storage: libSQL with DDL at boot
 
-Drizzle over `better-sqlite3`, schema applied as idempotent DDL on first connection.
-No migration command to forget under time pressure, and the schema is small enough that
+Drizzle over `@libsql/client`. Locally `DATABASE_URL` is a file, and on Vercel it is a
+remote Turso `libsql://` URL, because the Vercel filesystem is ephemeral (the client refuses
+a file database when `VERCEL` is set). The schema is applied as idempotent
+`CREATE TABLE IF NOT EXISTS` DDL at server start (`src/instrumentation.ts`). There is no
+migration command to forget under time pressure, and the schema is small enough that
 `IF NOT EXISTS` is honest rather than a dodge.
 
-The ledger is the one piece with real integrity requirements, so it gets a partial unique
-index on `(provider, external_id)`. That single index is what makes Stripe webhook
-replays and x402 retries safe, rather than application-level de-duplication that races.
+The ledger is the one piece with real integrity requirements, so it gets a unique index on
+`(provider, external_id)`. That single index is what makes Stripe webhook replays and x402
+retries safe, rather than application-level de-duplication that races.
 
-## SSE: persist, then publish
+One consequence worth stating: a generated app calls the platform's public URL, so that
+platform must read the database the build was written to. A local server whose
+`NEXT_PUBLIC_APP_URL` points at a deployment must therefore share that deployment's
+database. `readiness()` flags the mismatch.
 
-Build events are written to the database **before** they are published to in-process
-listeners, and the SSE route attaches its listener *before* replaying history, buffering
-anything that fires mid-replay. That ordering is why a reconnect at `?after=N` is exact
-with neither a gap nor a duplicate.
+## SSE: persist, then poll
 
-It is single-process by design. A multi-instance deploy would need a shared bus; the
-persistence-first ordering means only the transport would change.
+Build events are written to the database as they happen, and the stream route reads them
+back, polling once a second and resuming from `?after=N`. That is why a reconnect is exact
+with neither a gap nor a duplicate, and why it works across serverless instances: there is
+no in-process bus to lose. Background build work continues after the response returns by
+using `after()` from `next/server`.
